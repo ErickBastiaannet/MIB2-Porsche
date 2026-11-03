@@ -42,14 +42,13 @@ def main() -> None:
         ' || [ ! -s "$CW_PERSIST/cw-rgi.so" ]', '')
     v145_launcher = v145_launcher.replace(
         'cp "$CW_PERSIST/cw-rgi.so" "$CW_ROOT/cw-rgi.so" || exec "$CW_STOCK" "$@"\n', '')
-    v145_launcher = v145_launcher.replace(
-        '    CW_RGI_ENABLE=1\n', '    CW_INITIAL_ZOOM_OUT=1\n')
+    v145_launcher = v145_launcher.replace('    CW_RGI_ENABLE=1\n', '')
     v145_launcher = v145_launcher.replace(
         'LD_PRELOAD="$CW_ROOT/cw-rgi.so:$CW_ROOT/cw-receiver-v145.so${LD_PRELOAD:+:$LD_PRELOAD}"',
         'LD_PRELOAD="$CW_ROOT/cw-receiver-v145.so${LD_PRELOAD:+:$LD_PRELOAD}"')
     v145_launcher = v145_launcher.replace(
-        'export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR CW_RGI_ENABLE LD_PRELOAD',
-        'export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR CW_INITIAL_ZOOM_OUT LD_PRELOAD')
+        'export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR CW_AUTO_ALT_WAKE CW_RGI_ENABLE LD_PRELOAD',
+        'export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR CW_AUTO_ALT_WAKE LD_PRELOAD')
 
     v145 = {
         'cw-window-candidate': stable['cw-window-candidate'],
@@ -98,7 +97,7 @@ script
    label "CarPlay: herstel bewezen Stable V14"
 script
    value sys 1 0x0100 "/scripts/online/carplay_profile_v145.sh"
-   label "CarPlay: test dag/nacht en zoom (V14.5)"
+   label "CarPlay: test snelle automatische start (V14.5)"
 script
    value sys 1 0x0100 "/scripts/online/carplay_profile_v146.sh"
    label "CarPlay: test meldingen (V14.6)"
@@ -133,8 +132,8 @@ Pak deze ZIP uit over de bestaande Online Menu-kaart en voer de normale
 menu-update uit. De profielen zijn bewust stapsgewijs opgebouwd.
 
 Stable V14 is de fysiek bewezen basis voor Apple Kaarten en Google Maps.
-V14.5 blijft native-only en voegt dynamische dag/nachtmodus, een enkele
-zoom-out na geldig kaartbeeld en SD-diagnostiek toe. V14.6 voegt uitsluitend
+V14.5 blijft native-only en voegt automatische activering vanuit de normale
+CarPlay-stream plus SD-diagnostiek toe. V14.6 voegt uitsluitend
 de minimale AppState-notificatieklasse toe en gebruikt een eenmalige proefboot.
 Controls V15 voegt de native kaartbediening en RGI-routegeleiding toe: zoomen
 wordt semantisch naar de CarPlay-kaart gestuurd en manoeuvre-, rijstrook- en

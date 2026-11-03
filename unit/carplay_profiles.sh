@@ -55,7 +55,7 @@ if [ "$ACTION" = status ]; then
     elif [ -s "$V146/confirmed" ]; then echo "Profiel: V14.6 meldingen bevestigd"
     elif [ -s "$V146/attempted" ]; then echo "Profiel: V14.6 proefboot niet bevestigd; volgende boot gebruikt stock-HMI"
     elif [ -s "$V146/pending" ]; then echo "Profiel: V14.6 klaar voor eenmalige proefboot"
-    elif [ -s "$V145/enabled" ]; then echo "Profiel: V14.5 dag/nacht, beginzoom en logging"
+    elif [ -s "$V145/enabled" ]; then echo "Profiel: V14.5 automatische start en logging"
     elif [ -s "$STABLE/enabled" ]; then echo "Profiel: Stable V14"
     else echo "Profiel: OEM"; fi
     [ ! -s /mnt/persist/connectwow-carplay/session.status ] || cat /mnt/persist/connectwow-carplay/session.status
@@ -179,7 +179,7 @@ install-v145)
     stage_file "$V145/launcher.sh" "$DIO" || { rollback_switch; ro; fail "V14.5 DIO-installatie mislukt"; }
     finish_switch
     ro || fail "Appvolume niet read-only"
-    echo "V14.5 actief na herstart: native dag/nacht, een begin-zoom-out en SD-logging"
+    echo "V14.5 actief na herstart: automatische CarPlay-start en SD-logging"
     reboot_unit
     ;;
 install-v146)
