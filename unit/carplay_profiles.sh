@@ -80,6 +80,24 @@ stage_file() {
     cp -p "$SOURCE" "$TARGET.cw-new" || return 1
     mv -f "$TARGET.cw-new" "$TARGET" || return 1
 }
+copy_checked() {
+    SOURCE=$1
+    TARGET=$2
+    cp -p "$SOURCE" "$TARGET" || return 1
+    [ "$(hash "$TARGET")" = "$(hash "$SOURCE")" ] || return 1
+}
+begin_switch() {
+    cp -p "$DIO" "$ROOT/.switch-dio" || return 1
+    cp -p "$LSD" "$ROOT/.switch-lsd" || { rm -f "$ROOT/.switch-dio"; return 1; }
+}
+rollback_switch() {
+    stage_file "$ROOT/.switch-lsd" "$LSD" 2>/dev/null
+    stage_file "$ROOT/.switch-dio" "$DIO" 2>/dev/null
+    rm -f "$ROOT/.switch-lsd" "$ROOT/.switch-dio"
+}
+finish_switch() {
+    rm -f "$ROOT/.switch-lsd" "$ROOT/.switch-dio"
+}
 
 case "$ACTION" in
 install-stable)
@@ -87,14 +105,16 @@ install-stable)
     rw || fail "Appvolume niet schrijfbaar"
     mkdir -p "$STABLE" || { ro; fail "Stable-map niet beschikbaar"; }
     for NAME in cw-window-candidate cw-receiver-v6.so libcw-query-stdio.so stable-launcher.sh payload.manifest; do
-        cp -p "$PAYLOAD/stable/$NAME" "$STABLE/$NAME" || { ro; fail "Kopieren mislukt: $NAME"; }
+        copy_checked "$PAYLOAD/stable/$NAME" "$STABLE/$NAME" || { ro; fail "Kopieren of nacontrole mislukt: $NAME"; }
     done
     mv -f "$STABLE/stable-launcher.sh" "$STABLE/launcher.sh" || { ro; fail "Stable-launcher ontbreekt"; }
     chmod 755 "$STABLE/cw-window-candidate" "$STABLE/launcher.sh"
     echo enabled > "$STABLE/enabled"
     rm -f "$CONTROLS/enabled" "$CONTROLS/pending" "$CONTROLS/attempted" "$CONTROLS/confirmed"
-    stage_file "$LSD.cw-stock" "$LSD" || { ro; fail "OEM HMI-herstel mislukt"; }
-    stage_file "$STABLE/launcher.sh" "$DIO" || { ro; fail "Stable DIO-installatie mislukt"; }
+    begin_switch || { ro; fail "Startbestanden konden niet transactioneel worden geborgd"; }
+    stage_file "$LSD.cw-stock" "$LSD" || { rollback_switch; ro; fail "OEM HMI-herstel mislukt"; }
+    stage_file "$STABLE/launcher.sh" "$DIO" || { rollback_switch; ro; fail "Stable DIO-installatie mislukt"; }
+    finish_switch
     ro || fail "Appvolume niet read-only"
     echo "Stable V14 actief na herstart"
     ;;
@@ -103,15 +123,17 @@ install-controls)
     rw || fail "Appvolume niet schrijfbaar"
     mkdir -p "$CONTROLS" || { ro; fail "Controls-map niet beschikbaar"; }
     for NAME in cw-window-candidate cw-receiver-controls.so cw-rgi.so libcw-query-stdio.so controls-launcher.sh lsd-controls.sh PorscheCarPlayBridge.experimental.jar payload.manifest; do
-        cp -p "$PAYLOAD/controls/$NAME" "$CONTROLS/$NAME" || { ro; fail "Kopieren mislukt: $NAME"; }
+        copy_checked "$PAYLOAD/controls/$NAME" "$CONTROLS/$NAME" || { ro; fail "Kopieren of nacontrole mislukt: $NAME"; }
     done
     mv -f "$CONTROLS/controls-launcher.sh" "$CONTROLS/launcher.sh" || { ro; fail "Controls-launcher ontbreekt"; }
     chmod 755 "$CONTROLS/cw-window-candidate" "$CONTROLS/launcher.sh" "$CONTROLS/lsd-controls.sh"
     echo enabled > "$CONTROLS/enabled"
     echo pending > "$CONTROLS/pending"
     rm -f "$CONTROLS/attempted" "$CONTROLS/confirmed"
-    stage_file "$CONTROLS/lsd-controls.sh" "$LSD" || { ro; fail "Controls HMI-starter mislukt"; }
-    stage_file "$CONTROLS/launcher.sh" "$DIO" || { ro; fail "Controls DIO-starter mislukt"; }
+    begin_switch || { ro; fail "Startbestanden konden niet transactioneel worden geborgd"; }
+    stage_file "$CONTROLS/lsd-controls.sh" "$LSD" || { rollback_switch; ro; fail "Controls HMI-starter mislukt"; }
+    stage_file "$CONTROLS/launcher.sh" "$DIO" || { rollback_switch; ro; fail "Controls DIO-starter mislukt"; }
+    finish_switch
     ro || fail "Appvolume niet read-only"
     echo "Controls V15 klaar voor de proefboot. Bevestig alleen als PCM, CarPlay, zoom en pijlen werken."
     reboot_unit
@@ -128,8 +150,10 @@ restore-oem)
     ensure_stock
     rw || fail "Appvolume niet schrijfbaar"
     rm -f "$STABLE/enabled" "$CONTROLS/enabled" "$CONTROLS/pending" "$CONTROLS/attempted" "$CONTROLS/confirmed"
-    stage_file "$LSD.cw-stock" "$LSD" || { ro; fail "OEM HMI-herstel mislukt"; }
-    stage_file "$DIO.cw-stock" "$DIO" || { ro; fail "OEM DIO-herstel mislukt"; }
+    begin_switch || { ro; fail "Startbestanden konden niet transactioneel worden geborgd"; }
+    stage_file "$LSD.cw-stock" "$LSD" || { rollback_switch; ro; fail "OEM HMI-herstel mislukt"; }
+    stage_file "$DIO.cw-stock" "$DIO" || { rollback_switch; ro; fail "OEM DIO-herstel mislukt"; }
+    finish_switch
     ro || fail "Appvolume niet read-only"
     echo "Volledig OEM actief na herstart"
     ;;
