@@ -1,0 +1,573 @@
+##################################################################################################
+#
+# Alternative Online Green Engineering Menu screen
+# Author:       Olli
+# Version:      1.7
+#
+##################################################################################################
+#
+# Main -> OnlineMenu
+#
+##################################################################################################
+screen   OnlineMenu Main
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"[Online Menu v1.7]"
+    poll     		0
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0	
+	
+##################################################################################################
+#
+# Main -> OnlineMenu -> Scripts
+#
+##################################################################################################
+screen  Scripts OnlineMenu
+
+script
+   value    		sys 1 0x0100 "/scripts/online/check_online_setup.sh"
+   label    		"Check online setup (read only)"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/setup_online.sh"
+   label    		"Configure online services (server-ip.txt)"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/restore_online_setup.sh"
+   label    		"Restore online setup backups"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_info.sh"
+   label    		"Show and save FAZIT and more"
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0	
+	
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_here_certificates.sh"
+   label    		"Dump HERE CA certificates to SD (read only)"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/check_here_certificates.sh"
+   label    		"Check missing HTTPS roots (read only)"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/import_here_certificates.sh"
+   label    		"Add missing HTTPS roots (keep this car certificates)"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/restore_here_certificates.sh"
+   label    		"Restore CA backup / remove added override"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/nosslcheck.sh"
+   label    		"Check SSL status for online services"
+
+script
+   value    		sys 1 0x0100 "/scripts/online/set_nosslcheck.sh"
+   label    		"Disable SSL check for online services"
+   
+script
+   value    		sys 1 0x0100 "/scripts/online/unset_nosslcheck.sh"
+   label    		"Re-enable SSL check for online services"
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0	
+	
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_hosts.sh"
+   label    		"Dump hosts file"
+   
+script
+   value    		sys 1 0x0100 "/scripts/online/import_hosts.sh"
+   label    		"Import new hosts file from online/hosts folder (hosts.txt)"  
+   
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0	
+   
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_libP.sh"
+   label    		"Dump /net/mmx/mnt/app/navigation/libPresentationController.so"
+   
+script
+   value    		sys 1 0x0100 "/scripts/online/import_libP.sh"
+   label    		"Import new libPresentationController.so from online/libPres... folder"
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0	
+	
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_remotehmi.sh"
+   label    		"Dump /net/mmx/mnt/app/eso/hmi/remotehmi"
+   
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_rhmi.sh"
+   label    		"Dump /var/app/rhmi"
+   
+script
+   value    		sys 1 0x0100 "/scripts/online/dump_credentials.sh"
+   label    		"Dump /ramdisk/credentials"
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0	
+	
+button
+	value   		per 0 1 ""
+    label   		"Flush persistence cache to FFS"
+
+script
+   value    		sys 1 0x0100 "/scripts/performePersReset.sh"
+   label    		"Require reset with persistence"
+
+##################################################################################################
+#
+# Main -> OnlineMenu -> Coding
+#
+##################################################################################################
+screen  Coding OnlineMenu
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"If your car never had online services you need to code them. Choose Reboot"
+    poll     		0
+	
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"button at the bottom of this site afterwards to save changes."
+    poll     		0
+
+keyValue	
+	value 			String per 1 0x00010003
+    label 			"_____________________________________________________________________________"
+    poll     		500
+
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"PayTMC should be set to either 32785 (RUS) or 32783 (EU). Also see readme!"
+    poll     		0
+
+slider
+    value       	per 28442848 520
+	label       	"Set PayTMC (coarse)"
+	limits			absolute 0 65535 200
+    poll        	1000
+	
+slider
+    value       	per 28442848 531
+	label       	"Set PayTMC (fine)"
+	limits			absolute 0 65535
+    poll        	1000
+	
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"You also need to change adaptation channels. Not all is neccessary"
+    poll     		0
+	
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"and differs between brands. Check readme."
+    poll     		0
+	
+#choice ## currently commented out because not usable with alternative server or cars ##
+#    value   		per 0 0x50185808
+#    label   		"OnlineFunctions"
+#    poll    		1000   
+
+bitcheck
+    value   		per 0x0 0xC0020082
+    index   		0 0
+    label   		"Online Services HMI Availability"
+	
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		0 1
+	label   		"Online POI"
+	
+#bitselect ## currently commented out because not usable with alternative server or cars ##
+#    value 			per 0x0 0xC0020054
+#    label 			"Online POI Voice"
+#    range 			0.2 0.2
+#    entry 			"off" 0
+#	 entry 			"on" 1
+#
+#bitselect
+#    value 			per 0x0 0xC0020054
+#    label 			"Online Portal Browser Services"
+#    range 			0.3 0.3
+#    entry 			"off" 0
+#	 entry 			"on" 1
+
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		0 4
+	label   		"Online Navigation"
+
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		0 5
+	label   		"Online Streetview"
+
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		0 7
+	label   		"My Audi"
+	
+#bitselect ## currently commented out because not usable with alternative server or cars ##
+#    value 			per 0x0 0xC0020054
+#    label 			"Online Dictation"
+#    range 			1.1 1.1
+#    entry 			"off" 0
+#	 entry 			"on" 1
+
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		1 4
+	label   		"Gracenote Online Cover"
+	
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		1 5
+	label   		"Gracenote Online Other"
+
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		7 4
+	label   		"Online Media"
+	
+#bitselect
+#    value 			per 0x0 0xC0020054
+#    label 			"Online Radio"
+#    range 			16.5 16.6
+#    entry 			"deactivated" 0
+#	 entry 			"HMI only" 1
+#	 entry 			"HMI + SDK" 2
+	
+bitcheck
+    value   		per 0x0 0xC0020054
+	index   		8 1
+	label   		"UOTA"
+	
+#choice ## experimental and not neccessary ##
+#	value 			per 0x01c500e6 310
+#	label 			"Traffic Patterns"
+#	poll 			0
+#	
+#bitselect
+#    value 			per 0x0 0xC0020054
+#    label 			"UOTA 2"
+#    range 			20.4 20.4
+#    entry 			"off" 0
+#	 entry 			"on" 1
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		""
+    poll     		0
+	
+script
+   value    		sys 1 0x0100 "/scripts/performePersReset.sh"
+   label    		"Reboot to save changes" 
+   
+##################################################################################################
+#
+# Main -> OnlineMenu -> Service-Status
+#
+##################################################################################################
+screen  Service-Status OnlineMenu
+
+slider
+    value   		per 1501 3
+    label   		"Backends"
+	limits			keys 1 2
+    poll            2000
+
+keyValue
+	value			String per 1501 4
+	label			"Active Backend"
+	poll			500
+	
+keyValue
+	value			String per 1501 15
+	label			"Host"
+	poll			500
+
+keyValue
+	value			String per 1501 16
+	label			"AudiT0 User"
+	poll			500
+
+keyValue
+	value			String per 1501 17
+	label			"Current Realm"
+	poll			500
+	
+keyValue
+	value			String per 1501 5
+	label			"Current VIN"
+	poll			500
+
+keyValue
+	value			String per 1501 30
+	label			"Registered VIN"
+	poll			500
+	
+keyValue
+	value			String per 1501 18
+	label			"OnlineState"
+	poll			500
+	
+keyValue
+	value			String per 1501 19
+	label			"Version"
+	poll			500
+
+keyValue
+	value			int per 1501 28
+	label			"Owner verified"
+	poll			500	
+
+choice
+	value 			per 1501 13
+	label 			"Component Protection"
+	poll 500
+
+keyValue
+    value   		String sys 0x00000000 0
+    label   		""
+    poll    		0
+
+keyValue
+    value   		String sys 0x00000000 0
+    label   		"--- ESO Backend ---"
+    poll    		0
+	
+slider
+    value           per 1501 23
+    label           "Stage"
+	limits			keys 21 22
+    poll            2000
+
+keyValue
+	value			String per 1501 24
+	label			"Active Stage"
+	poll			500
+	
+keyValue
+	value			String per 1501 25
+	label			"Current Server"
+	poll			500
+
+keyValue
+	value			String per 1501 26
+	label			"Username"
+	poll			500
+
+keyValue
+	value			String per 1501 27
+	label			"Current Realm"
+	poll			500
+	
+##################################################################################################
+#
+# Main -> OnlineMenu -> Traffic-Status
+#
+##################################################################################################
+screen Traffic-Status OnlineMenu
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"Informative screen to show current live traffic data."
+    poll     		0
+	
+keyValue
+	value 			String per 1 0x00010003
+    label 			"_____________________________________________________________________________"
+    poll     		500
+
+keyValue
+	value			String per 1501 4
+	label			"Active Backend"
+	poll			500
+
+keyValue
+	value			String per 1501 5
+	label			"VIN"
+	poll			500
+
+BIOSCtrl
+	value 			String per 1501 10010
+	label 			"Online Traffic Provider"
+	entry 			"LIVE" "A"
+	entry 			"INRIX Beta" "B"
+	entry 			"INRIX NAR LIVE" "C"
+	entry 			"INRIX NAR Beta" "D"
+	entry 			"Here LIVE" "E"
+	entry 			"TomTom beta" "F"
+	entry 			"TomTom pre" "G"
+	entry 			"TomTom LIVE" "H"
+	entry 			"VW Test" "I"
+	entry 			"AUDI Test" "J"
+	entry 			"INRIX LIVE" "K"
+	entry 			"INRIX Canned" "L"
+	entry 			" " "M"
+	entry 			"Asien Autonavi" "Y"
+	entry 			"Asien VICS" "Z"
+	poll 1000
+
+keyValue
+	value			String per 1501 10011
+	label			"Application State"
+	poll			500
+
+keyValue
+	value			String per 1501 10012
+	label			"Producer"
+	poll			500
+
+keyValue
+	value			String per 1501 10013
+	label			"Producer State"
+	poll			500
+	
+keyValue
+	value			String per 1501 10014
+	label			"Session Key"
+	poll			500
+
+keyValue
+	value			String per 1501 10020
+	label			"Last Session HTTP-Code"
+	poll			500
+
+keyValue
+	value			String per 1501 10015
+	label			"Poll Interval"
+	poll			500
+
+keyValue
+	value			int per 1501 10016
+	label			"Count Success"
+	poll			500
+
+keyValue
+	value			int per 1501 10017
+	label			"Count Fail"
+	poll			500
+
+keyValue
+	value			String per 1501 10018
+	label			"Last Error"
+	poll			500
+	
+keyValue
+	value			String per 1501 10019
+	label			"Last HTTP-Code"
+	poll			500
+	
+##################################################################################################
+#
+# Main -> OnlineMenu -> Licenses-Status
+#
+##################################################################################################
+screen Licenses-Status OnlineMenu
+
+keyValue
+    value    		String sys 0x00000000 0
+    label    		"Informative screen to show licenses data and status."
+    poll     		0
+
+keyValue
+	value 			String per 1 0x00010003
+    label 			"_____________________________________________________________________________"
+    poll     		500
+	
+keyValue
+	value			String per 1501 30
+	label			"registered VIN"
+	poll			500
+
+keyValue
+	value			String per 1501 32
+	label			"Registration Status"
+	poll			500
+
+keyValue
+	value			String per 1501 18
+	label			"Online State"
+	poll			500
+	
+keyValue
+	value			String per 1501 36
+	label			"Used SIM type"
+	poll			500	
+		
+keyValue
+	value			String per 1501 33
+	label			"Service State"
+	poll			500
+	
+keyValue
+	value			String per 1501 34
+	label			"ServiceList timestamp"
+	poll			500	
+	
+keyValue
+	value			String per 1501 35
+	label			"Last HTTP Code ServiceList"
+	poll			500
+	
+script
+	value    		sys 1 0x0100 "/scripts/ols-showServices.sh"
+	label    		"Show serviceList content incl. licenses" 	
+	
+script
+	value    		sys 1 0x0100 "/scripts/ols-showLicenses.sh"
+	label    		"Show disableReasons for services (listed by serviceID)" 
+	
+##################################################################################################
+#
+# Main -> OnlineMenu -> Update/Uninstall/...
+#
+##################################################################################################
+screen "Update/Uninstall/..." OnlineMenu	
+	
+button
+	value 			per 1501 10 PurgePersistence
+	label 			"Purge OLS Persistence"
+	poll 			500	
+
+script
+   value    		sys 1 0x0100 "/eso/hmi/engdefs/scripts/online/update.sh"
+   label    		"Update OnlineMenu and scripts"
+   
+script
+   value    		sys 1 0x0100 "/eso/hmi/engdefs/scripts/online/clean_log.sh"
+   label    		"Clean update log"
+	
+script
+   value    		sys 1 0x0100 "/eso/hmi/engdefs/scripts/online/uninstall_dev.sh"
+   label    		"Uninstall OnlineMenu and disable Devmode (undo codings yourself before!)"
+   
+script
+   value    		sys 1 0x0100 "/eso/hmi/engdefs/scripts/online/uninstall.sh"
+   label    		"Uninstall OnlineMenu and keep Devmode (undo codings yourself before!)"

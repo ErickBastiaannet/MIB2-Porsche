@@ -33,7 +33,7 @@ def main() -> None:
     files = {
         'cw-window-candidate': (verified / 'cw-window-candidate').read_bytes(),
         'cw-receiver-v6.so': (verified / 'cw-receiver-v6.so').read_bytes(),
-        'libcw-query-stdio.so': (ROOT / 'build/qnx/libcw-query-stdio.so').read_bytes(),
+        'libcw-query-stdio.so': (verified / 'libcw-query-stdio.so').read_bytes(),
         'dio_manager_verified_test.sh': (ROOT / 'unit/dio_manager_verified_test.sh').read_bytes(),
     }
     expected = {
