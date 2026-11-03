@@ -44,6 +44,38 @@ CW_CHILD=$!
     unset LD_PRELOAD
     LD_LIBRARY_PATH=/mnt/app/armle/lib:/mnt/app/armle/usr/lib:/mnt/app/root/lib-target:/eso/lib:/armle/lib:/armle/lib/dll:/armle/usr/lib
     export LD_LIBRARY_PATH
+    CW_SOURCE_READY=/ramdisk/cw-porsche-altstream.ready
+    CW_RING=/ramdisk/cw-porsche-alt-ring.bin
+    CW_PREFLIGHT=$CW_ROOT/cw-display-preflight.log
+    CW_LAST_TIMESTAMP=
+    CW_STABLE=0
+    echo "WAITING_FOR_READY_STREAM child=$CW_CHILD" > "$CW_PREFLIGHT"
+    while kill -0 "$CW_CHILD" 2>/dev/null; do
+        CW_READY_PID=
+        CW_READY_TIMESTAMP=
+        if [ -s "$CW_SOURCE_READY" ] && [ -s "$CW_RING" ]; then
+            read -r CW_READY_PID CW_READY_TIMESTAMP < "$CW_SOURCE_READY"
+        fi
+        if [ "$CW_READY_PID" = "$CW_CHILD" ] && [ -n "$CW_READY_TIMESTAMP" ] &&
+           [ "$CW_READY_TIMESTAMP" != "$CW_LAST_TIMESTAMP" ] &&
+           "$CW_ROOT/cw-window-candidate" --inspect "$CW_ROOT" > "$CW_PREFLIGHT.new" 2>&1 &&
+           grep 'context=72' "$CW_PREFLIGHT.new" >/dev/null 2>&1; then
+            CW_STABLE=$((CW_STABLE + 1))
+            CW_LAST_TIMESTAMP=$CW_READY_TIMESTAMP
+            cat "$CW_PREFLIGHT.new" > "$CW_PREFLIGHT"
+            echo "READY_SAMPLE count=$CW_STABLE timestamp=$CW_READY_TIMESTAMP" >> "$CW_PREFLIGHT"
+            if [ "$CW_STABLE" -ge 3 ]; then
+                echo "READY_TO_RENDER child=$CW_CHILD" >> "$CW_PREFLIGHT"
+                break
+            fi
+        else
+            CW_STABLE=0
+            CW_LAST_TIMESTAMP=$CW_READY_TIMESTAMP
+        fi
+        sleep 1
+    done
+    rm -f "$CW_PREFLIGHT.new"
+    kill -0 "$CW_CHILD" 2>/dev/null || exit 0
     exec "$CW_ROOT/cw-window-candidate" --run "$CW_ROOT" "$CW_CHILD"
 ) >>"$CW_ROOT/cw-carplay-live-v14.log" 2>&1 &
 CW_SUPERVISOR=$!

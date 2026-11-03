@@ -15,6 +15,20 @@ class VerifiedLauncherRegressionTest(unittest.TestCase):
         self.assertLess(source.index(marker), source.index(prime))
         self.assertLess(source.index(marker), source.index(supervisor))
 
+    def test_renderer_waits_for_stable_stream_and_ready_cluster(self):
+        source = (ROOT / 'unit/dio_manager_verified_test.sh').read_text()
+        supervisor = 'exec "$CW_ROOT/cw-window-candidate" --run'
+        for requirement in (
+            '[ -s "$CW_SOURCE_READY" ]',
+            '[ -s "$CW_RING" ]',
+            '"$CW_ROOT/cw-window-candidate" --inspect',
+            "grep 'context=72'",
+            '[ "$CW_STABLE" -ge 3 ]',
+            'kill -0 "$CW_CHILD"',
+        ):
+            self.assertIn(requirement, source)
+            self.assertLess(source.index(requirement), source.index(supervisor))
+
 
 if __name__ == '__main__':
     unittest.main()
