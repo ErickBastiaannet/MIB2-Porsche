@@ -205,19 +205,28 @@ public final class BuildPorscheHooks {
 
     public static void main(String[] args) throws Exception {
         Path classes = Path.of(args[1]);
+        byte[] notificationClass = null;
         try (JarFile original = new JarFile(args[0]); JarOutputStream out = new JarOutputStream(Files.newOutputStream(Path.of(args[2])))) {
             checkApi(original);
             for (String name : new String[]{LAYOUT, CLUSTER, CARPLAY, DISPLAY, COMBI, APPSTATE}) {
                 JarEntry entry = original.getJarEntry(name + ".class");
                 if (entry == null) throw new IllegalStateException("Missing exact Porsche class: " + name);
                 byte[] source = original.getInputStream(entry).readAllBytes();
-                add(out, name + ".class", name.equals(APPSTATE) ? neutralizeNavigationOwnership(source) : patch(source, name));
+                byte[] result = name.equals(APPSTATE) ? neutralizeNavigationOwnership(source) : patch(source, name);
+                if (name.equals(APPSTATE)) notificationClass = result;
+                add(out, name + ".class", result);
             }
             try (var stream = Files.walk(classes.resolve("org/connectwow/carplay"))) {
                 for (Path file : stream.filter(p -> p.toString().endsWith(".class")).sorted().toList())
                     add(out, classes.relativize(file).toString().replace('\\', '/'), legacy(Files.readAllBytes(file)));
             }
             add(out, GUIDANCE + ".class", legacy(Files.readAllBytes(classes.resolve(GUIDANCE + ".class"))));
+        }
+        if (args.length >= 4) {
+            if (notificationClass == null) throw new IllegalStateException("Notification class was not built");
+            try (JarOutputStream notifications = new JarOutputStream(Files.newOutputStream(Path.of(args[3])))) {
+                add(notifications, APPSTATE + ".class", notificationClass);
+            }
         }
         if (areaHooks != 2 || visibilityHooks != 1 || activityHooks != 4 || contextHooks != 1 || switchHooks != 1 || scaleHooks != 1 || scaleSettingHooks != 1 || guidanceHooks != 1 || appStateHooks != 2) throw new IllegalStateException("Unexpected Porsche hook layout");
         System.out.println("Porsche bridge: display, route guidance and background CarPlay notifications; all method bytecode checked");

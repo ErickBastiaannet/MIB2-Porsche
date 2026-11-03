@@ -76,7 +76,8 @@ def main():
                for value in ['--add-exports', 'java.base/jdk.internal.org.objectweb.' + package + '=ALL-UNNAMED']]
     run('javac', *exports, '-d', build, ROOT / 'build-tools/BuildPorscheHooks.java')
     output = build / 'PorscheCarPlayBridge.experimental.jar'
-    run('java', *exports, '-cp', build, 'BuildPorscheHooks', combined, classes, output)
+    notifications = build / 'PorscheCarPlayNotifications.experimental.jar'
+    run('java', *exports, '-cp', build, 'BuildPorscheHooks', combined, classes, output, notifications)
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'NotificationFixture')
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'org.connectwow.tests.ClusterFixture', str(build / 'cluster-fixture'))
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'org.connectwow.tests.ControlsFixture', str(build / 'fixture'))
@@ -84,6 +85,7 @@ def main():
         'firmware': 'MHI2_ER_POG24_K5137_MU1417_971919360T',
         'source_classes_sha256': EXPECTED,
         'artifact_sha256': hashlib.sha256(output.read_bytes()).hexdigest(),
+        'notifications_sha256': hashlib.sha256(notifications.read_bytes()).hexdigest(),
         'artifact_role': 'HMI bridge for alternate display, route guidance and background CarPlay notification compatibility; requires native SD candidate package',
         'physical_unit_verified': False, 'unit_modified': False,
     }, indent=2) + '\n', encoding='utf-8')

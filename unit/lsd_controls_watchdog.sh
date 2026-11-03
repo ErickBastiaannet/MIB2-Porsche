@@ -1,18 +1,27 @@
-#!/bin/sh
+#!/bin/ksh
 # One-probe-boot HMI wrapper. An unconfirmed candidate automatically falls
 # back to the stock HMI on the next boot, so a bad bridge cannot loop forever.
 ROOT=/mnt/app/eso/hmi/connectwow-carplay/controls-v15
 STOCK=/mnt/app/eso/hmi/lsd/lsd.sh.cw-stock
 JAR=$ROOT/PorscheCarPlayBridge.experimental.jar
+SDLOG=
+for SD in /fs/sda0 /fs/sdb0; do
+    if [ -d "$SD" ]; then SDLOG=$SD/connectwow-carplay-logs/v15; break; fi
+done
+[ -z "$SDLOG" ] || { mkdir -p "$SDLOG"; echo "HMI wrapper start profile=15" > "$SDLOG/hmi-boot.txt"; }
 
 if [ -s "$ROOT/confirmed" ] && [ -s "$JAR" ]; then
     VMOPTIONS="$VMOPTIONS -Xbootclasspath/p:$JAR"
     export VMOPTIONS
+    [ -z "$SDLOG" ] || echo "full hook=confirmed" >> "$SDLOG/hmi-boot.txt"
 elif [ -s "$ROOT/pending" ] && [ -s "$JAR" ]; then
     rm -f "$ROOT/pending"
     echo attempted > "$ROOT/attempted"
     VMOPTIONS="$VMOPTIONS -Xbootclasspath/p:$JAR"
     export VMOPTIONS
+    [ -z "$SDLOG" ] || echo "full hook=one-shot" >> "$SDLOG/hmi-boot.txt"
+else
+    [ -z "$SDLOG" ] || echo "full hook=stock-fallback" >> "$SDLOG/hmi-boot.txt"
 fi
 
-exec /bin/sh "$STOCK" "$@"
+exec /bin/ksh "$STOCK" "$@"

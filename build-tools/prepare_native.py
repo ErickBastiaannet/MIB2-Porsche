@@ -155,6 +155,59 @@ def main():
         # The thread can finish before pthread_create returns. Save the port first.
         text = text.replace('    listener->epoch = cw_claim(fd);', '    *out_port = listener->port;\n    listener->epoch = cw_claim(fd);', 1)
         text = text.replace('    *out_port = listener->port;\n    return 0;', '    return 0;', 1)
+        # V14.5 keeps the proven native-only display path, but mirrors the
+        # stock Porsche day/night state to the UUID-addressed cluster screen.
+        # It also permits one guarded initial zoom-out after showUI; no HMI
+        # class is needed for either operation.
+        text = text.replace(
+            '} else if (!status && strcmp(type, "requestUI") == 0) {',
+            '} else if (!status && strcmp(type, "setNightMode") == 0) {\n'
+            '        status = set_cstring(params, "uuid", ALT_UUID);\n'
+            '        if (!status) status = set_int(params, "nightMode", zoom_direction ? 1 : 0);\n'
+            '    } else if (!status && strcmp(type, "requestUI") == 0) {',
+            1,
+        )
+        map_end = text.index('#endif /* ALTSCREEN_RUNTIME_MAP_CONTROL */')
+        night_hook = r'''
+typedef OSStatus (*CwSetNightModeFn)(void *, int, void *, void *);
+OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
+                                            void *completion, void *context)
+{
+    static CwSetNightModeFn real_function;
+    void *map_session = NULL;
+    OSStatus stock_status;
+    if (!real_function)
+        real_function = (CwSetNightModeFn)resolve("AirPlayReceiverSessionSetNightMode");
+    if (!real_function) return -1;
+    stock_status = real_function(session, night, completion, context);
+    pthread_mutex_lock(&g_map_control_lock);
+    map_session = (void *)retain_cf(g_map_control_session);
+    pthread_mutex_unlock(&g_map_control_lock);
+    if (map_session) {
+        send_map_semantic_command(map_session, "setNightMode", NULL, night ? 1 : 0);
+        release_cf(map_session);
+    }
+    log_capture("cluster-night-mode", night ? 1 : 0, stock_status, 0);
+    return stock_status;
+}
+
+'''
+        text = text[:map_end] + night_hook + text[map_end:]
+        text = text.replace(
+            '    send_alt_command(task->session, "showUI", ALT_MAP_URL);\n#endif',
+            '    send_alt_command(task->session, "showUI", ALT_MAP_URL);\n'
+            '#ifdef ALTSCREEN_RUNTIME_MAP_CONTROL\n'
+            '    {\n'
+            '        const char *initial_zoom = getenv("CW_INITIAL_ZOOM_OUT");\n'
+            '        if (initial_zoom && initial_zoom[0] && strcmp(initial_zoom, "0") != 0) {\n'
+            '            usleep(600000U);\n'
+            '            send_map_semantic_command(task->session, "changeMapZoomLevel", NULL, 1);\n'
+            '            log_capture("cluster-initial-zoom-out", 1, 0, 0);\n'
+            '        }\n'
+            '    }\n'
+            '#endif\n#endif',
+            1,
+        )
         text = prefix + '\n' + text
         name = 'porsche_capture_receiver.c'
     (target / name).write_text(text, encoding='utf-8', newline='\n')
