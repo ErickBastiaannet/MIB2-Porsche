@@ -5,7 +5,6 @@ import java.net.*;
 import java.util.zip.CRC32;
 import org.connectwow.carplay.PorscheCluster;
 import org.connectwow.carplay.PorscheClusterControls;
-import org.dsi.ifc.displaymanagement.DisplayContext;
 
 /** End-to-end regression for signed Porsche MapScale -> semantic CarPlay zoom. */
 public final class ControlsFixture {
@@ -30,12 +29,8 @@ public final class ControlsFixture {
         socket.setSoTimeout(700);
         try {
             lease(41);
-            DisplayContext[] contexts = new DisplayContext[158];
-            PorscheCluster.installContexts(contexts);
-            int selected = PorscheCluster.selectContext(72, 1);
-            check(selected == 70, "CarPlay context not selected: selected=" + selected
-                + " epoch=" + PorscheCluster.carPlayEpoch() + " context70=" + (contexts[70] != null));
-            check(PorscheClusterControls.consumeMapScale(1), "owned zoom not consumed");
+            check(PorscheCluster.carPlayEpoch() == 41, "native renderer lease not accepted");
+            check(PorscheClusterControls.consumeMapScale(1), "leased zoom not consumed");
             check("zoom-out".equals(receive(socket)), "positive MapScale must zoom out");
             check(PorscheClusterControls.consumeMapScale(-1), "owned zoom not consumed");
             check("zoom-in".equals(receive(socket)), "negative MapScale must zoom in");
@@ -51,7 +46,6 @@ public final class ControlsFixture {
 
             // No renderer lease means no phone-map command.
             ready.delete(); socket.setSoTimeout(320);
-            PorscheCluster.selectContext(72, 1);
             check(!PorscheClusterControls.consumeMapScale(1), "OEM zoom was consumed");
             try { throw new AssertionError("zoom escaped during OEM fallback: " + receive(socket)); }
             catch (SocketTimeoutException expected) { }

@@ -29,19 +29,26 @@ public final class ClusterFixture {
         check(PorscheCluster.selectContext(72,1)==72);
         long now = System.currentTimeMillis()/1000L;
         lease(now,false);
+        // Windows File.renameTo does not replace an existing destination;
+        // QNX rename does. Keep this host fixture focused on routing logic.
+        new File(args[0]+".context").delete();
         check(PorscheCluster.selectContext(72,1)==70);
+        new File(args[0]+".context").delete();
         check(PorscheCluster.selectContext(151,1)==149);
+        new File(args[0]+".context").delete();
         check(PorscheCluster.selectContext(74,1)==149);
         check(PorscheCluster.selectContext(78,0)==78);
         check(PorscheCluster.selectContext(75,1)==75);
-        lease(now-30,false); check(PorscheCluster.selectContext(72,1)==72);
-        lease(now+30,false); check(PorscheCluster.selectContext(72,1)==72);
-        lease(now,true); check(PorscheCluster.selectContext(72,1)==72);
+        lease(now-30,false); new File(args[0]+".context").delete(); check(PorscheCluster.selectContext(72,1)==72);
+        lease(now+30,false); new File(args[0]+".context").delete(); check(PorscheCluster.selectContext(72,1)==72);
+        lease(now,true); new File(args[0]+".context").delete(); check(PorscheCluster.selectContext(72,1)==72);
         lease(now,false);
         PorscheCluster.installContexts(contexts); // already occupied: reject conflicting registration
-        check(PorscheCluster.selectContext(72,1)==72 && contexts[72]==stock);
+        new File(args[0]+".context").delete(); check(PorscheCluster.selectContext(72,1)==72 && contexts[72]==stock);
         contexts=new DisplayContext[79]; PorscheCluster.installContexts(contexts);
+        new File(args[0]+".context").delete();
         check(PorscheCluster.selectContext(72,1)==70);
+        new File(args[0]+".context").delete();
         check(PorscheCluster.selectContext(74,1)==70);
         System.out.println("PORSCHE_JAVA_CLUSTER_PASS context isolation, map switching, stale/corrupt lease, conflicts");
     }

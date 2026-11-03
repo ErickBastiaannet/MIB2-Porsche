@@ -19,7 +19,10 @@ public final class PorscheClusterControls {
 
     /** Consumes MapScale only while CarPlay owns the cluster; OEM otherwise stays stock. */
     public static boolean consumeMapScale(int steps) {
-        if (!PorscheCluster.carPlayOwnsCluster()) return false;
+        // Zoom must also work in the isolated zoom profile, where the display
+        // routing hook is deliberately absent. The native renderer's short
+        // lived, checksummed lease is the authoritative ownership signal.
+        if (!PorscheCluster.carPlayReady()) return false;
         if (steps == 0) return true;
         synchronized (LOCK) {
             startLocked();
