@@ -87,6 +87,13 @@ licentie-instellingen en slaat geen ruwe telefoonvideo op.
 Appmeldingen vereisen een actieve CarPlay-verbinding en toestemming op de
 iPhone. Welke inhoud WhatsApp, Telegram of een andere app vrijgeeft wordt door
 iOS en die app bepaald; de PCM kan verborgen meldingstekst niet reconstrueren.
+De Controls-bridge gebruikt hiervoor dezelfde AppState-semantiek als de
+Audi/Porsche-navignoreoplossing: navigatie-eigendom wordt geneutraliseerd,
+terwijl `speechMode` en het originele CarPlay-popupkanaal behouden blijven.
+Daardoor kan een toegestane melding ook verschijnen wanneer een andere PCM-
+pagina voorstaat; de CarPlay-sessie zelf moet wel verbonden zijn. Flitsmeister-
+waarschuwingen verschijnen alleen wanneer de iOS-app ze via CarPlay als melding
+of audio-waarschuwing aanbiedt.
 SD-profielen voor veilig bijwerken en herstellen
 ------------------------------------------------
 `python build-tools/build_profile_sd_zip.py` maakt

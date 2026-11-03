@@ -94,6 +94,12 @@ stoppen zonder wijzigingen als payload of OEM-back-ups niet exact kloppen.
 De bestaande Porsche kaartmenu's worden niet verborgen: het instrumentenpaneel
 opent die lokaal en de HU ontvangt het event pas daarna. Eerdere BAP-capability-
 routes sluiten het menu aantoonbaar niet en kunnen wel de videolaag verbergen.
+
+CarPlay-meldingen gebruiken het originele Porsche-popup- en speechkanaal. De
+AppState-patch neutraliseert uitsluitend navigatie-eigendom. WhatsApp, Berichten,
+Telegram en Flitsmeister kunnen alleen iets tonen of laten horen wanneer iOS en
+de betreffende app dit voor CarPlay toestaan; de unit leest geen afgeschermde
+iPhone-meldingen uit.
 '''
     output = ROOT / 'build/porsche-carplay-profiles-MU1417.zip'
     output.parent.mkdir(parents=True, exist_ok=True)
