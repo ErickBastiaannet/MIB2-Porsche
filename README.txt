@@ -87,3 +87,19 @@ licentie-instellingen en slaat geen ruwe telefoonvideo op.
 Appmeldingen vereisen een actieve CarPlay-verbinding en toestemming op de
 iPhone. Welke inhoud WhatsApp, Telegram of een andere app vrijgeeft wordt door
 iOS en die app bepaald; de PCM kan verborgen meldingstekst niet reconstrueren.
+SD-profielen voor veilig bijwerken en herstellen
+------------------------------------------------
+`python build-tools/build_profile_sd_zip.py` maakt
+`build/porsche-carplay-profiles-MU1417.zip`. Dit ene pakket bevat:
+
+- de fysiek bevestigde Stable V14;
+- de optionele Controls V15 met semantische zoom en Porsche RGI-routepijlen;
+- een eenmalige HMI-proefboot met automatische OEM-HMI-terugval;
+- expliciete bevestiging van Controls V15;
+- volledig herstel van de originele Porsche HMI- en DIO-starters.
+
+Controls V15 is technisch opgebouwd en statisch gecontroleerd, maar moet nog
+op de fysieke Panamera worden bevestigd. De bestaande Porsche kaartmenu's
+blijven daarom voorlopig zichtbaar; menuverwijdering valt buiten deze veilige
+eerste bedieningsproef.
+
