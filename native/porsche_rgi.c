@@ -25,7 +25,8 @@ static void select_maneuver(cw_rgi_state *s,unsigned index) {
     s->maneuver_index=(uint16_t)index; m=&s->maneuvers[index];
     if(!m->valid)return;
     s->main_element=m->main_element;s->direction=m->direction;s->z_level=m->z_level;
-    if(m->after_road[0]) { strncpy(s->turn_to,m->after_road,sizeof(s->turn_to)-1);s->turn_to[sizeof(s->turn_to)-1]=0; }
+    if(m->exit_info[0]) { strncpy(s->turn_to,m->exit_info,sizeof(s->turn_to)-1);s->turn_to[sizeof(s->turn_to)-1]=0; }
+    else if(m->after_road[0]) { strncpy(s->turn_to,m->after_road,sizeof(s->turn_to)-1);s->turn_to[sizeof(s->turn_to)-1]=0; }
     else { strncpy(s->turn_to,m->description,sizeof(s->turn_to)-1);s->turn_to[sizeof(s->turn_to)-1]=0; }
 }
 
@@ -92,7 +93,7 @@ static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
 }
 
 static int parse_maneuver(cw_rgi_state *s,const uint8_t *m,size_t n) {
-    size_t o=6,vn; uint16_t id; const uint8_t *v; unsigned index=0,type=0,junction=0,driving=0; int angle=0,seen=0; char description[97]={0},after[97]={0};
+    size_t o=6,vn; uint16_t id; const uint8_t *v; unsigned index=0,type=0,junction=0,driving=0; int angle=0,seen=0; char description[97]={0},after[97]={0},exit_info[97]={0};
     while (tlv_next(m,n,&o,&id,&v,&vn)) {
         if (id==1 && vn>=2) index=be16(v);
         else if (id==2) text_copy(description,sizeof(description),v,vn);
@@ -101,6 +102,7 @@ static int parse_maneuver(cw_rgi_state *s,const uint8_t *m,size_t n) {
         else if (id==8 && vn>=1) driving=v[0];
         else if (id==9 && vn>=1) junction=v[0];
         else if (id==11 && vn>=2) angle=(int16_t)be16(v);
+        else if (id==13) text_copy(exit_info,sizeof(exit_info),v,vn);
     }
     if (!seen || index>=64) return 0;
     {
@@ -110,6 +112,7 @@ static int parse_maneuver(cw_rgi_state *s,const uint8_t *m,size_t n) {
         item->z_level=0;
         strncpy(item->description,description,sizeof(item->description)-1);
         strncpy(item->after_road,after,sizeof(item->after_road)-1);
+        strncpy(item->exit_info,exit_info,sizeof(item->exit_info)-1);
     }
     if(index==s->maneuver_index || (s->epoch==0 && index==0)) select_maneuver(s,index);
     s->active=1; return 1;

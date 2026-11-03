@@ -17,10 +17,10 @@ int main(void){
     assert(cw_rgi_consume(&s,m,n)==1&&s.active&&s.distance==500&&s.bargraph==127&&strcmp(s.current_road,"Nieuwe Erpseweg")==0);
     b=0;v[0]=0;v[1]=0;b+=tlv(body+b,1,v,2);b+=tlv(body+b,2,(const unsigned char*)"Sla rechtsaf",11);v[0]=1;b+=tlv(body+b,3,v,1);b+=tlv(body+b,4,(const unsigned char*)"N279",4);v[0]=0;b+=tlv(body+b,8,v,1);b+=tlv(body+b,9,v,1);n=message(m,0x5202,body,b);
     assert(cw_rgi_consume(&s,m,n)==1&&s.main_element==13&&s.direction==64&&strcmp(s.turn_to,"N279")==0);
-    b=0;v[0]=0;v[1]=1;b+=tlv(body+b,1,v,2);b+=tlv(body+b,2,(const unsigned char*)"Neem afrit",10);v[0]=2;b+=tlv(body+b,3,v,1);b+=tlv(body+b,4,(const unsigned char*)"A50",3);v[0]=0;b+=tlv(body+b,8,v,1);b+=tlv(body+b,9,v,1);n=message(m,0x5202,body,b);
+    b=0;v[0]=0;v[1]=1;b+=tlv(body+b,1,v,2);b+=tlv(body+b,2,(const unsigned char*)"Neem afrit",10);v[0]=2;b+=tlv(body+b,3,v,1);b+=tlv(body+b,4,(const unsigned char*)"A50",3);b+=tlv(body+b,13,(const unsigned char*)"Veghel 10",9);v[0]=0;b+=tlv(body+b,8,v,1);b+=tlv(body+b,9,v,1);n=message(m,0x5202,body,b);
     assert(cw_rgi_consume(&s,m,n)==1&&strcmp(s.turn_to,"N279")==0);
     b=0;v[0]=1;b+=tlv(body+b,1,v,1);v[0]=0;v[1]=0;v[2]=0;v[3]=1;b+=tlv(body+b,13,v,4);n=message(m,0x5201,body,b);
-    assert(cw_rgi_consume(&s,m,n)==1&&s.maneuver_index==1&&s.main_element==13&&s.direction==192&&strcmp(s.turn_to,"A50")==0);
+    assert(cw_rgi_consume(&s,m,n)==1&&s.maneuver_index==1&&s.main_element==13&&s.direction==192&&strcmp(s.turn_to,"Veghel 10")==0);
     b=0;{unsigned char lane[32];size_t q=0;v[0]=0;v[1]=1;q+=tlv(lane+q,0,v,2);v[0]=2;q+=tlv(lane+q,1,v,1);v[0]=0;v[1]=0xc0;q+=tlv(lane+q,3,v,2);b+=tlv(body+b,2,lane,q);}n=message(m,0x5204,body,b);
     assert(cw_rgi_consume(&s,m,n)==1&&s.lane_count==1&&s.lanes[0].position==1&&s.lanes[0].direction==192);
     assert(cw_rgi_publish(&s,"/tmp/cw-rgi-test") == 0);assert(access("/tmp/cw-rgi-test",R_OK)==0);unlink("/tmp/cw-rgi-test");

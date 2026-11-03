@@ -14,6 +14,7 @@ typedef struct {
     int8_t z_level;
     char description[97];
     char after_road[97];
+    char exit_info[97];
 } cw_rgi_maneuver;
 
 typedef struct {
