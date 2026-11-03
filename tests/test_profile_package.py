@@ -44,6 +44,7 @@ def test_v145_native_contract_and_logging():
         assert 'exec "$CW_ROOT/cw-window-candidate" --run "$CW_ROOT" "$CW_CHILD"' in launcher
         assert b'cluster-night-mode' in receiver
         assert b'cluster-initial-zoom-out' in receiver
+        assert b'alt-main-ready-armed' in receiver
 
 
 def test_v15_has_same_sd_diagnostics():

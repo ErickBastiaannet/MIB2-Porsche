@@ -208,6 +208,49 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
             '#endif\n#endif',
             1,
         )
+        # The READY callback belongs to the already-running type-110 screen.
+        # Remembering the session only after type 111 has been requested is a
+        # circular dependency: a route start or USB reconnect then becomes the
+        # accidental trigger. Arm activation when the stock main stream setup
+        # succeeds, so its first READY frame requests the cluster display.
+        text = text.replace(
+            '#if defined(ALTSCREEN_ACTIVATE_DISPLAY) && \\\n'
+            '    defined(ALTSCREEN_ACTIVATE_ON_SCREEN_READY)\n'
+            '        remember_alt_session(session);\n'
+            '#endif\n'
+            '        log_capture("alt-passive-port-created", port, 111, 0);',
+            '#if defined(ALTSCREEN_ACTIVATE_DISPLAY) && \\\n'
+            '    defined(ALTSCREEN_ACTIVATE_ON_SCREEN_READY)\n'
+            '        {\n'
+            '            const char *auto_wake = getenv("CW_AUTO_ALT_WAKE");\n'
+            '            if (!auto_wake || !auto_wake[0] || strcmp(auto_wake, "0") == 0)\n'
+            '                remember_alt_session(session);\n'
+            '        }\n'
+            '#endif\n'
+            '        log_capture("alt-passive-port-created", port, 111, 0);',
+            1,
+        )
+        text = text.replace(
+            '#ifndef ALTSCREEN_ACTIVATE_ON_SCREEN_READY\n'
+            '        OSStatus schedule_status = schedule_alt_activation(session,\n'
+            '                                                            1000U * 1000U);\n'
+            '        log_status("alt-activation-schedule-result", session, schedule_status);\n'
+            '#endif',
+            '#ifdef ALTSCREEN_ACTIVATE_ON_SCREEN_READY\n'
+            '        {\n'
+            '            const char *auto_wake = getenv("CW_AUTO_ALT_WAKE");\n'
+            '            if (auto_wake && auto_wake[0] && strcmp(auto_wake, "0") != 0) {\n'
+            '                remember_alt_session(session);\n'
+            '                log_status("alt-main-ready-armed", session, 0);\n'
+            '            }\n'
+            '        }\n'
+            '#else\n'
+            '        OSStatus schedule_status = schedule_alt_activation(session,\n'
+            '                                                            1000U * 1000U);\n'
+            '        log_status("alt-activation-schedule-result", session, schedule_status);\n'
+            '#endif',
+            1,
+        )
         text = prefix + '\n' + text
         name = 'porsche_capture_receiver.c'
     (target / name).write_text(text, encoding='utf-8', newline='\n')
