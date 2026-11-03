@@ -10,7 +10,8 @@ for CW_SD in /fs/sda0 /fs/sdb0; do
 done
 [ -z "$CW_SD_LOG" ] || mkdir -p "$CW_SD_LOG"
 
-if [ ! -s "$CW_PERSIST/enabled" ] || [ ! -x "$CW_PERSIST/cw-window-candidate" ] ||
+if [ ! -s "$CW_PERSIST/enabled" ] || [ ! -s "$CW_PERSIST/installed.manifest" ] ||
+   [ ! -x "$CW_PERSIST/cw-window-candidate" ] ||
    [ ! -s "$CW_PERSIST/cw-receiver-controls.so" ] || [ ! -s "$CW_PERSIST/cw-rgi.so" ] ||
    [ ! -s "$CW_PERSIST/libcw-query-stdio.so" ]; then
     exec "$CW_STOCK" "$@"
@@ -62,7 +63,10 @@ echo "RUNNING child=$CW_CHILD supervisor=$CW_SUPERVISOR" >> "$CW_LOG_ROOT/sessio
 [ -z "$CW_SD_LOG" ] || cp "$CW_LOG_ROOT/session.status" "$CW_SD_LOG/session.status"
 
 CW_CLOSING=0
-trap 'CW_CLOSING=1; kill -TERM "$CW_CHILD" "$CW_SUPERVISOR" 2>/dev/null' HUP INT TERM
+# K5137 propagates both HUP and TERM while tearing down a USB/CarPlay
+# session. Neither identifies a PCM shutdown reliably, so keep the wrapper
+# restartable; the system supervisor terminates it during a real shutdown.
+trap 'kill -TERM "$CW_CHILD" "$CW_SUPERVISOR" 2>/dev/null' HUP INT TERM
 wait "$CW_CHILD"
 CW_RESULT=$?
 kill -TERM "$CW_SUPERVISOR" 2>/dev/null
@@ -78,5 +82,7 @@ cp "$CW_ROOT/cw-porsche-prime.log" "$CW_LOG_ROOT/geometry.log" 2>/dev/null
     cp "$CW_LOG_ROOT/geometry.log" "$CW_SD_LOG/geometry.log" 2>/dev/null
 }
 rm -f "$CW_ROOT/cw-launcher.pid" "$CW_ROOT/cw-dio-child.pid" "$CW_ROOT/cw-supervisor.pid"
-if [ "$CW_CLOSING" -eq 0 ] && [ "$CW_RESULT" -ne 0 ]; then exec "$CW_STOCK" "$@"; fi
-exit "$CW_RESULT"
+# The OEM DIO process exits on every phone-session disconnect. Always restart
+# the wrapper so the next USB connection is intercepted without a PCM reboot.
+sleep 1
+exec "$CW_PERSIST/launcher.sh" "$@"

@@ -33,19 +33,9 @@ function fail { echo "ERROR: $*"; exit 1; }
 function rw { mount -uw "$APP"; }
 function ro { mount -ur "$APP"; }
 function reboot_unit {
-    # Exact K5137 engineering-menu persistence-reset sequence from
-    # eso/hmi/engdefs/scripts/performePersReset.sh in the stock firmware.
-    echo "Installatie geslaagd. Herstart met persistence wordt aangevraagd."
+    echo "Installatie geslaagd. Volledige RCC-herstart wordt aangevraagd."
     sleep 2
-    mount -uw /mnt/system || fail "Systeemvolume niet schrijfbaar voor reset"
-    touch /etc/ooc.allow.reset || fail "Resetvrijgave kon niet worden geplaatst"
-    echo hmi-sys-reset > /dev/ooc/reset || {
-        rm -f /etc/ooc.allow.reset
-        fail "Resetopdracht kon niet worden verzonden"
-    }
-    sleep 2
-    rm -f /etc/ooc.allow.reset
-    echo "Herstartopdracht verzonden"
+    on -f rcc /usr/apps/mib2_ioc_flash reboot || fail "RCC-herstartopdracht mislukt"
 }
 
 if [ "$ACTION" = status ]; then
@@ -213,21 +203,31 @@ confirm-v146)
 install-controls)
     ensure_stock
     rw || fail "Appvolume niet schrijfbaar"
-    mkdir -p "$CONTROLS" || { ro; fail "Controls-map niet beschikbaar"; }
+    CONTROLS_NEW=$ROOT/.controls-v15-new
+    CONTROLS_OLD=$ROOT/.controls-v15-old
+    rm -rf "$CONTROLS_NEW" "$CONTROLS_OLD"
+    mkdir -p "$CONTROLS_NEW" || { ro; fail "Tijdelijke Controls-map niet beschikbaar"; }
     for NAME in cw-window-candidate cw-receiver-controls.so cw-rgi.so libcw-query-stdio.so controls-launcher.sh lsd-controls.sh PorscheCarPlayBridge.experimental.jar payload.manifest; do
-        copy_checked "$PAYLOAD/controls/$NAME" "$CONTROLS/$NAME" || { ro; fail "Kopieren of nacontrole mislukt: $NAME"; }
+        copy_checked "$PAYLOAD/controls/$NAME" "$CONTROLS_NEW/$NAME" || { rm -rf "$CONTROLS_NEW"; ro; fail "Kopieren of nacontrole mislukt: $NAME"; }
     done
-    mv -f "$CONTROLS/controls-launcher.sh" "$CONTROLS/launcher.sh" || { ro; fail "Controls-launcher ontbreekt"; }
-    chmod 755 "$CONTROLS/cw-window-candidate" "$CONTROLS/launcher.sh" "$CONTROLS/lsd-controls.sh"
-    echo enabled > "$CONTROLS/enabled"
-    echo pending > "$CONTROLS/pending"
-    rm -f "$V146/enabled" "$V146/pending" "$V146/attempted" "$V146/confirmed" "$CONTROLS/attempted" "$CONTROLS/confirmed"
+    mv -f "$CONTROLS_NEW/controls-launcher.sh" "$CONTROLS_NEW/launcher.sh" || { rm -rf "$CONTROLS_NEW"; ro; fail "Controls-launcher ontbreekt"; }
+    cp -p "$CONTROLS_NEW/payload.manifest" "$CONTROLS_NEW/installed.manifest" || { rm -rf "$CONTROLS_NEW"; ro; fail "Installatiemanifest kon niet worden vastgelegd"; }
+    chmod 755 "$CONTROLS_NEW/cw-window-candidate" "$CONTROLS_NEW/launcher.sh" "$CONTROLS_NEW/lsd-controls.sh"
+    echo enabled > "$CONTROLS_NEW/enabled" || { rm -rf "$CONTROLS_NEW"; ro; fail "Controls kon niet worden geactiveerd"; }
+    echo native-only > "$CONTROLS_NEW/hmi-mode" || { rm -rf "$CONTROLS_NEW"; ro; fail "Veilige HMI-modus kon niet worden vastgelegd"; }
+    [ ! -d "$CONTROLS" ] || mv "$CONTROLS" "$CONTROLS_OLD" || { rm -rf "$CONTROLS_NEW"; ro; fail "Bestaande Controls-map kon niet worden geborgd"; }
+    mv "$CONTROLS_NEW" "$CONTROLS" || { [ ! -d "$CONTROLS_OLD" ] || mv "$CONTROLS_OLD" "$CONTROLS"; ro; fail "Nieuwe Controls-map kon niet atomair worden geactiveerd"; }
     begin_switch || { ro; fail "Startbestanden konden niet transactioneel worden geborgd"; }
-    stage_file "$CONTROLS/lsd-controls.sh" "$LSD" || { rollback_switch; ro; fail "Controls HMI-starter mislukt"; }
-    stage_file "$CONTROLS/launcher.sh" "$DIO" || { rollback_switch; ro; fail "Controls DIO-starter mislukt"; }
+    # The native CarPlay path is physically verified. Keep Porsche's HMI
+    # launcher stock until each Java hook has passed an isolated unit test;
+    # loading the combined experimental JAR blocks MU1417 navigation startup.
+    stage_file "$LSD.cw-stock" "$LSD" || { rollback_switch; rm -rf "$CONTROLS"; [ ! -d "$CONTROLS_OLD" ] || mv "$CONTROLS_OLD" "$CONTROLS"; ro; fail "OEM HMI-starter kon niet worden behouden"; }
+    stage_file "$CONTROLS/launcher.sh" "$DIO" || { rollback_switch; rm -rf "$CONTROLS"; [ ! -d "$CONTROLS_OLD" ] || mv "$CONTROLS_OLD" "$CONTROLS"; ro; fail "Controls DIO-starter mislukt"; }
     finish_switch
+    rm -rf "$CONTROLS_OLD"
+    rm -f "$STABLE/enabled" "$V145/enabled" "$V146/enabled" "$V146/pending" "$V146/attempted" "$V146/confirmed"
     ro || fail "Appvolume niet read-only"
-    echo "Controls V15 klaar voor de proefboot. Bevestig alleen als PCM, CarPlay, zoom en pijlen werken."
+    echo "Native V15 actief met OEM HMI. Experimentele Java-controls zijn bewust uitgeschakeld."
     reboot_unit
     ;;
 confirm-controls)

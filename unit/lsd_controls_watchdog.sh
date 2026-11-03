@@ -4,17 +4,21 @@
 ROOT=/mnt/app/eso/hmi/connectwow-carplay/controls-v15
 STOCK=/mnt/app/eso/hmi/lsd/lsd.sh.cw-stock
 JAR=$ROOT/PorscheCarPlayBridge.experimental.jar
+COMPLETE=1
+for REQUIRED in installed.manifest enabled cw-window-candidate cw-receiver-controls.so cw-rgi.so libcw-query-stdio.so launcher.sh; do
+    [ -s "$ROOT/$REQUIRED" ] || COMPLETE=0
+done
 SDLOG=
 for SD in /fs/sda0 /fs/sdb0; do
     if [ -d "$SD" ]; then SDLOG=$SD/connectwow-carplay-logs/v15; break; fi
 done
 [ -z "$SDLOG" ] || { mkdir -p "$SDLOG"; echo "HMI wrapper start profile=15" > "$SDLOG/hmi-boot.txt"; }
 
-if [ -s "$ROOT/confirmed" ] && [ -s "$JAR" ]; then
+if [ "$COMPLETE" -eq 1 ] && [ -s "$ROOT/confirmed" ] && [ -s "$JAR" ]; then
     VMOPTIONS="$VMOPTIONS -Xbootclasspath/p:$JAR"
     export VMOPTIONS
     [ -z "$SDLOG" ] || echo "full hook=confirmed" >> "$SDLOG/hmi-boot.txt"
-elif [ -s "$ROOT/pending" ] && [ -s "$JAR" ]; then
+elif [ "$COMPLETE" -eq 1 ] && [ -s "$ROOT/pending" ] && [ -s "$JAR" ]; then
     rm -f "$ROOT/pending"
     echo attempted > "$ROOT/attempted"
     VMOPTIONS="$VMOPTIONS -Xbootclasspath/p:$JAR"
