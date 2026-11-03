@@ -39,6 +39,9 @@ def test_v145_native_contract_and_logging():
         assert 'CW_INITIAL_ZOOM_OUT=1' in launcher
         assert 'connectwow-carplay-logs/v14-5' in launcher
         assert 'cw-rgi' not in launcher
+        assert '--prime-geometry' not in launcher
+        assert 'WAITING_FOR_READY_STREAM' not in launcher
+        assert 'exec "$CW_ROOT/cw-window-candidate" --run "$CW_ROOT" "$CW_CHILD"' in launcher
         assert b'cluster-night-mode' in receiver
         assert b'cluster-initial-zoom-out' in receiver
 
