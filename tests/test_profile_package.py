@@ -11,8 +11,9 @@ PACKAGE = ROOT / 'build/porsche-carplay-profiles-MU1417.zip'
 def test_profile_package_is_layered_and_qnx_safe():
     with zipfile.ZipFile(PACKAGE) as archive:
         names = set(archive.namelist())
-        manager = archive.read('install/scripts/carplay_profiles.sh').decode()
+        manager = archive.read('install/scripts/cwpm.sh').decode()
         assert manager.startswith('#!/bin/ksh\n')
+        assert 'install/scripts/carplay_profiles.sh' not in names
         assert not re.search(r'(?m)^\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\)\s*\{', manager)
         for profile in ('stable', 'v145', 'v146', 'controls'):
             manifest_path = f'online/carplay-profiles/{profile}/payload.manifest'
@@ -30,6 +31,12 @@ def test_profile_package_is_layered_and_qnx_safe():
         assert 'online/carplay-profiles/v145/PorscheCarPlayNotifications.experimental.jar' not in names
         assert 'online/carplay-profiles/v145/cw-rgi.so' not in names
         assert 'online/carplay-profiles/controls/cw-rgi.so' in names
+        for wrapper in (
+            'stable', 'v145', 'v146', 'confirm_v146', 'controls',
+            'confirm', 'logs', 'status', 'oem',
+        ):
+            body = archive.read(f'install/scripts/carplay_profile_{wrapper}.sh').decode()
+            assert '"$BASE/cwpm.sh"' in body
 
 
 def test_v145_native_contract_and_logging():

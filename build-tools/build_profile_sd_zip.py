@@ -166,9 +166,13 @@ iPhone-meldingen uit.
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, data)
 
-        put('install/scripts/carplay_profiles.sh', manager.encode(), True)
+        # Keep the manager name short and distinct. The MIB2 Online Menu
+        # updater can alias long, nearly-identical script names and previously
+        # overwrote the beginning of carplay_profiles.sh with the controls
+        # wrapper while leaving the old tail in place.
+        put('install/scripts/cwpm.sh', manager.encode(), True)
         for suffix, action in wrappers.items():
-            body = f'#!/bin/ksh\nBASE=${{0%/*}}\nexec /bin/ksh "$BASE/carplay_profiles.sh" {action}\n'.encode()
+            body = f'#!/bin/ksh\nBASE=${{0%/*}}\nexec /bin/ksh "$BASE/cwpm.sh" {action}\n'.encode()
             put(f'install/scripts/carplay_profile_{suffix}.sh', body, True)
         put('install/esd/OnlineMenu.esd', menu.encode())
         for name, data in stable.items():
