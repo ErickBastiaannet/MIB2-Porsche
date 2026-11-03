@@ -157,8 +157,6 @@ def main():
         text = text.replace('    *out_port = listener->port;\n    return 0;', '    return 0;', 1)
         # V14.5 keeps the proven native-only display path, but mirrors the
         # stock Porsche day/night state to the UUID-addressed cluster screen.
-        # It also permits one guarded initial zoom-out after showUI; no HMI
-        # class is needed for either operation.
         text = text.replace(
             '} else if (!status && strcmp(type, "requestUI") == 0) {',
             '} else if (!status && strcmp(type, "setNightMode") == 0) {\n'
@@ -220,11 +218,18 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
             '    send_alt_command(task->session, "showUI", ALT_MAP_URL);\n'
             '#ifdef ALTSCREEN_RUNTIME_MAP_CONTROL\n'
             '    {\n'
-            '        const char *initial_zoom = getenv("CW_INITIAL_ZOOM_OUT");\n'
-            '        if (initial_zoom && initial_zoom[0] && strcmp(initial_zoom, "0") != 0) {\n'
-            '            usleep(600000U);\n'
-            '            send_map_semantic_command(task->session, "changeMapZoomLevel", NULL, 1);\n'
-            '            log_capture("cluster-initial-zoom-out", 1, 0, 0);\n'
+            '        int night_mode;\n'
+            '        /* The phone acknowledges an early setNightMode while the alternate\n'
+            '         * scene is still coming up, but does not apply it to that scene.\n'
+            '         * Repeat the current value after the cluster map is established. */\n'
+            '        usleep(3000000U);\n'
+            '        pthread_mutex_lock(&g_map_control_lock);\n'
+            '        night_mode = g_last_night_mode;\n'
+            '        pthread_mutex_unlock(&g_map_control_lock);\n'
+            '        if (night_mode >= 0) {\n'
+            '            send_map_semantic_command(task->session, "setNightMode", NULL,\n'
+            '                                      night_mode);\n'
+            '            log_capture("cluster-night-mode-after-showui", night_mode, 0, 0);\n'
             '        }\n'
             '    }\n'
             '#endif\n#endif',

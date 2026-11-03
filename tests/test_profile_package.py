@@ -53,6 +53,7 @@ def test_v145_native_contract_and_logging():
         assert b'alt-main-ready-armed' in receiver
         assert b'map-control-session-remembered' in receiver
         assert b'cluster-night-mode-replayed' in receiver
+        assert b'cluster-night-mode-after-showui' in receiver
 
 
 def test_v15_has_same_sd_diagnostics():
