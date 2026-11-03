@@ -181,6 +181,7 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
     if (!real_function) return -1;
     stock_status = real_function(session, night, completion, context);
     pthread_mutex_lock(&g_map_control_lock);
+    g_last_night_mode = night ? 1 : 0;
     map_session = (void *)retain_cf(g_map_control_session);
     pthread_mutex_unlock(&g_map_control_lock);
     if (map_session) {
@@ -193,6 +194,27 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
 
 '''
         text = text[:map_end] + night_hook + text[map_end:]
+        text = text.replace(
+            'static void *g_map_control_session;\n',
+            'static void *g_map_control_session;\n'
+            'static int g_last_night_mode = -1;\n',
+            1,
+        )
+        text = text.replace(
+            '    log_status("map-control-session-remembered", retained,\n'
+            '               retained && thread_status == 0 ? 0 : -1);\n'
+            '}',
+            '    log_status("map-control-session-remembered", retained,\n'
+            '               retained && thread_status == 0 ? 0 : -1);\n'
+            '    if (retained && g_last_night_mode >= 0) {\n'
+            '        send_map_semantic_command(retained, "setNightMode", NULL,\n'
+            '                                  g_last_night_mode);\n'
+            '        log_capture("cluster-night-mode-replayed",\n'
+            '                    g_last_night_mode, 0, 0);\n'
+            '    }\n'
+            '}',
+            1,
+        )
         text = text.replace(
             '    send_alt_command(task->session, "showUI", ALT_MAP_URL);\n#endif',
             '    send_alt_command(task->session, "showUI", ALT_MAP_URL);\n'
@@ -244,6 +266,9 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
             '                log_status("alt-main-ready-armed", session, 0);\n'
             '            }\n'
             '        }\n'
+            '#ifdef ALTSCREEN_RUNTIME_MAP_CONTROL\n'
+            '        remember_map_control_session(session);\n'
+            '#endif\n'
             '#else\n'
             '        OSStatus schedule_status = schedule_alt_activation(session,\n'
             '                                                            1000U * 1000U);\n'
