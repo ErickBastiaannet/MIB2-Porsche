@@ -33,14 +33,12 @@ function fail { echo "ERROR: $*"; exit 1; }
 function rw { mount -uw "$APP"; }
 function ro { mount -ur "$APP"; }
 function reboot_unit {
-    echo "Installatie geslaagd. De unit herstart over 5 seconden."
-    echo "5"; sleep 1
-    echo "4"; sleep 1
-    echo "3"; sleep 1
-    echo "2"; sleep 1
-    echo "1"; sleep 1
-    on -f rcc /usr/apps/mib2_ioc_flash reboot || fail "Herstartopdracht mislukt; herstart de unit handmatig"
-    echo "Herstartopdracht verzonden"
+    # Never keep the engineering-menu Java caller waiting for the RCC reboot.
+    # The detached command gets no menu pipes, so the wrapper can return at once.
+    echo "Installatie geslaagd. Herstartopdracht wordt verzonden."
+    on -f rcc /usr/apps/mib2_ioc_flash reboot </dev/null >/dev/null 2>&1 &
+    echo "Herstartopdracht verzonden; het menu mag nu worden gesloten"
+    exit 0
 }
 
 if [ "$ACTION" = status ]; then
