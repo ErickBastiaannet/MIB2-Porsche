@@ -93,13 +93,16 @@ SD-profielen voor veilig bijwerken en herstellen
 `build/porsche-carplay-profiles-MU1417.zip`. Dit ene pakket bevat:
 
 - de fysiek bevestigde Stable V14;
-- de optionele Controls V15 met semantische zoom en Porsche RGI-routepijlen;
+- de optionele Controls V15 met semantische zoom, Porsche RGI-routepijlen,
+  rijstroken en straat-/volgende-wegtekst;
 - een eenmalige HMI-proefboot met automatische OEM-HMI-terugval;
 - expliciete bevestiging van Controls V15;
 - volledig herstel van de originele Porsche HMI- en DIO-starters.
 
 Controls V15 is technisch opgebouwd en statisch gecontroleerd, maar moet nog
 op de fysieke Panamera worden bevestigd. De bestaande Porsche kaartmenu's
-blijven daarom voorlopig zichtbaar; menuverwijdering valt buiten deze veilige
-eerste bedieningsproef.
+blijven zichtbaar. Firmware-analyse bevestigt dat het instrumentenpaneel deze
+lokaal opent voordat de HU het event ontvangt; lege BAP-capabilityvelden sluiten
+het menu niet en kunnen wel de CarPlay-videolaag verbergen. Tijdens CarPlay
+wordt daarom alleen de bestaande kaartzoom veilig onderschept.
 

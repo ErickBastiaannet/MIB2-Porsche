@@ -180,7 +180,7 @@ public final class BuildPorscheHooks {
     }
 
     static void checkApi(JarFile original) throws Exception {
-        ClassNode layout = new ClassNode(), rect = new ClassNode();
+        ClassNode layout = new ClassNode(), rect = new ClassNode(), combi = new ClassNode();
         new ClassReader(original.getInputStream(original.getJarEntry(
             "de/audi/tghu/navi/app/map/gui/layout/AbstractLayoutProvider.class"))).accept(layout, 0);
         for (String name : new String[]{"getScreenWidth", "getScreenHeight"}) {
@@ -196,6 +196,11 @@ public final class BuildPorscheHooks {
                 if (field.name.equals(name) && field.desc.equals("I") && (field.access & Opcodes.ACC_PUBLIC) != 0) found = true;
             if (!found) throw new IllegalStateException("OEM Rect mismatch: " + name);
         }
+        new ClassReader(original.getInputStream(original.getJarEntry(COMBI + ".class"))).accept(combi, 0);
+        boolean street = false;
+        for (MethodNode method : combi.methods)
+            if (method.name.equals("setCurrentStreet") && method.desc.equals("(Ljava/lang/String;)V")) street = true;
+        if (!street) throw new IllegalStateException("OEM API mismatch: setCurrentStreet(String)");
     }
 
     public static void main(String[] args) throws Exception {

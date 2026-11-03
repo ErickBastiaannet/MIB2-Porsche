@@ -81,8 +81,8 @@ menu-update uit. Onder CarPlayProfiles staan vijf acties.
 
 Stable V14 is de fysiek bewezen basis voor Apple Kaarten en Google Maps.
 Controls V15 voegt de native kaartbediening en RGI-routegeleiding toe: zoomen
-wordt semantisch naar de CarPlay-kaart gestuurd en manoeuvre-/rijstrookdata
-worden aan de Porsche-routegeleidingsketen aangeboden. Deze uitgebreidere laag
+wordt semantisch naar de CarPlay-kaart gestuurd en manoeuvre-, rijstrook- en
+straat-/volgende-wegdata worden aan de Porsche-routegeleidingsketen aangeboden. Deze uitgebreidere laag
 is nog niet fysiek bevestigd. Daarom start de gewijzigde HMI precies eenmaal.
 Zonder expliciete bevestiging gebruikt een volgende boot automatisch weer de
 originele Porsche-HMI. Kies na een volledig geslaagde rit pas 'bevestig'.
@@ -91,9 +91,9 @@ originele Porsche-HMI. Kies na een volledig geslaagde rit pas 'bevestig'.
 'Porsche OEM' herstelt zowel de originele HMI- als DIO-starter. Installaties
 stoppen zonder wijzigingen als payload of OEM-back-ups niet exact kloppen.
 
-De bestaande Porsche kaartmenu's worden in deze versie bewust niet verborgen:
-dat vereist een afzonderlijk fysiek gevalideerde Porsche-menuhandler en mag de
-werkende beeld- en bedieningsketen niet opnieuw in gevaar brengen.
+De bestaande Porsche kaartmenu's worden niet verborgen: het instrumentenpaneel
+opent die lokaal en de HU ontvangt het event pas daarna. Eerdere BAP-capability-
+routes sluiten het menu aantoonbaar niet en kunnen wel de videolaag verbergen.
 '''
     output = ROOT / 'build/porsche-carplay-profiles-MU1417.zip'
     output.parent.mkdir(parents=True, exist_ok=True)

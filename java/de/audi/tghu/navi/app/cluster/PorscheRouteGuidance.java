@@ -72,13 +72,28 @@ public final class PorscheRouteGuidance {
         state.direction = bounded(fields.nextToken(), 0, 255);
         state.z = bounded(fields.nextToken(), -16, 16);
         int lanes = bounded(fields.nextToken(), 0, 12);
-        if (fields.countTokens() != lanes) throw new IOException("invalid lane count");
+        if (fields.countTokens() != lanes + 2) throw new IOException("invalid guidance field count");
         state.lanes = new NavLaneGuidanceData[lanes];
         for (int i = 0; i < lanes; ++i) state.lanes[i] = lane(fields.nextToken());
+        state.currentRoad = text(fields.nextToken());
+        state.turnTo = text(fields.nextToken());
         long now = System.currentTimeMillis() / 1000L;
         if (state.epoch <= 0 || state.timestamp > now || now - state.timestamp > 3)
             throw new IOException("stale guidance state");
         return state;
+    }
+
+    private static String text(String hex) throws IOException {
+        if (hex.equals("-")) return "";
+        if ((hex.length() & 1) != 0 || hex.length() > 384) throw new IOException("invalid guidance text");
+        byte[] value = new byte[hex.length() / 2];
+        for (int i = 0; i < value.length; ++i) {
+            int high = Character.digit(hex.charAt(i * 2), 16);
+            int low = Character.digit(hex.charAt(i * 2 + 1), 16);
+            if (high < 0 || low < 0) throw new IOException("invalid guidance text hex");
+            value[i] = (byte)((high << 4) | low);
+        }
+        return new String(value, "UTF-8");
     }
 
     private static int bounded(String text, int minimum, int maximum) throws IOException {
@@ -113,6 +128,10 @@ public final class PorscheRouteGuidance {
             new BapManeuverDescriptor(state.main, state.direction, state.z, new byte[0])
         });
         target.setLaneGuidance(state.lanes, state.lanes.length != 0);
+        // MU1417 exposes this exact package-private BAP path. The cluster's
+        // position line shows the next road when available, otherwise the
+        // road currently being driven.
+        target.setCurrentStreet(state.turnTo.length() != 0 ? state.turnTo : state.currentRoad);
         active = true;
         appliedEpoch = state.epoch;
     }
@@ -128,6 +147,7 @@ public final class PorscheRouteGuidance {
             target.setLaneGuidance(new NavLaneGuidanceData[0], false);
             target.setManeuverDescriptor(new BapManeuverDescriptor[0]);
             target.setDistanceToNextManeuver(0, false, 0);
+            target.setCurrentStreet("");
             target.setGALState(false);
         } catch (Throwable ignored) { }
         active = false;
@@ -138,5 +158,6 @@ public final class PorscheRouteGuidance {
         boolean active;
         int distance, bargraph, main, direction, z;
         NavLaneGuidanceData[] lanes;
+        String currentRoad, turnTo;
     }
 }

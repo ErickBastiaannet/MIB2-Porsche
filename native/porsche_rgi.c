@@ -10,6 +10,25 @@ static uint16_t be16(const uint8_t *p) { return (uint16_t)((p[0] << 8) | p[1]); 
 static uint32_t be32(const uint8_t *p) { return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3]; }
 static void put16(uint8_t *p, uint16_t v) { p[0]=(uint8_t)(v>>8); p[1]=(uint8_t)v; }
 
+static int text_copy(char *out,size_t cap,const uint8_t *in,size_t n) {
+    size_t i,used=0;
+    if(!out||cap<2)return 0;
+    for(i=0;i<n&&used+1<cap;i++) if(in[i]>=0x20 && in[i]!=0x7f) out[used++]=(char)in[i];
+    while(used&&out[used-1]==' ')--used;
+    out[used]=0;
+    return 1;
+}
+
+static void select_maneuver(cw_rgi_state *s,unsigned index) {
+    cw_rgi_maneuver *m;
+    if(index>=64)return;
+    s->maneuver_index=(uint16_t)index; m=&s->maneuvers[index];
+    if(!m->valid)return;
+    s->main_element=m->main_element;s->direction=m->direction;s->z_level=m->z_level;
+    if(m->after_road[0]) { strncpy(s->turn_to,m->after_road,sizeof(s->turn_to)-1);s->turn_to[sizeof(s->turn_to)-1]=0; }
+    else { strncpy(s->turn_to,m->description,sizeof(s->turn_to)-1);s->turn_to[sizeof(s->turn_to)-1]=0; }
+}
+
 static uint32_t crc32_bytes(const uint8_t *p, size_t n) {
     uint32_t c=0xffffffffU; size_t i; int b;
     for (i=0;i<n;i++) { c^=p[i]; for (b=0;b<8;b++) c=(c>>1)^((0U-(c&1U))&0xedb88320U); }
@@ -62,22 +81,38 @@ static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
     size_t o=6,vn; uint16_t id; const uint8_t *v; int changed=0;
     while (tlv_next(m,n,&o,&id,&v,&vn)) {
         if (id==1 && vn>=1) { s->active=v[0]!=0; changed=1; }
+        else if (id==3) { text_copy(s->current_road,sizeof(s->current_road),v,vn); changed=1; }
         else if (id==10 && vn>=4) { s->distance=be32(v); s->bargraph=s->distance>=1000?255:(uint8_t)((s->distance*255U)/1000U); changed=1; }
+        else if (id==13 && vn>=2) {
+            unsigned index=vn>=4?be16(v+2):be16(v);
+            select_maneuver(s,index); changed=1;
+        }
     }
     return changed;
 }
 
 static int parse_maneuver(cw_rgi_state *s,const uint8_t *m,size_t n) {
-    size_t o=6,vn; uint16_t id; const uint8_t *v; unsigned type=0,junction=0,driving=0; int angle=0,seen=0;
+    size_t o=6,vn; uint16_t id; const uint8_t *v; unsigned index=0,type=0,junction=0,driving=0; int angle=0,seen=0; char description[97]={0},after[97]={0};
     while (tlv_next(m,n,&o,&id,&v,&vn)) {
-        if (id==3 && vn>=1) { type=v[0]; seen=1; }
+        if (id==1 && vn>=2) index=be16(v);
+        else if (id==2) text_copy(description,sizeof(description),v,vn);
+        else if (id==3 && vn>=1) { type=v[0]; seen=1; }
+        else if (id==4) text_copy(after,sizeof(after),v,vn);
         else if (id==8 && vn>=1) driving=v[0];
         else if (id==9 && vn>=1) junction=v[0];
         else if (id==11 && vn>=2) angle=(int16_t)be16(v);
     }
-    if (!seen) return 0;
-    map_maneuver(type,angle,junction,driving,&s->main_element,&s->direction);
-    s->z_level=0; s->active=1; return 1;
+    if (!seen || index>=64) return 0;
+    {
+        cw_rgi_maneuver *item=&s->maneuvers[index];
+        memset(item,0,sizeof(*item)); item->valid=1;
+        map_maneuver(type,angle,junction,driving,&item->main_element,&item->direction);
+        item->z_level=0;
+        strncpy(item->description,description,sizeof(item->description)-1);
+        strncpy(item->after_road,after,sizeof(item->after_road)-1);
+    }
+    if(index==s->maneuver_index || (s->epoch==0 && index==0)) select_maneuver(s,index);
+    s->active=1; return 1;
 }
 
 static int parse_lanes(cw_rgi_state *s,const uint8_t *m,size_t n) {
@@ -103,7 +138,11 @@ int cw_rgi_consume(cw_rgi_state *s,const uint8_t *m,size_t n) {
     if (!valid(m,n,id)) return 0;
     if (id==0x5201) changed=parse_update(s,m,n);
     else if (id==0x5202) changed=parse_maneuver(s,m,n);
-    else if (id==0x5203) { s->active=0; s->lane_count=0; changed=1; }
+    else if (id==0x5203) {
+        s->active=0; s->lane_count=0; s->maneuver_index=0;
+        memset(s->maneuvers,0,sizeof(s->maneuvers));
+        s->current_road[0]=0; s->turn_to[0]=0; changed=1;
+    }
     else if (id==0x5204) changed=parse_lanes(s,m,n);
     if (changed) ++s->epoch;
     return changed;
@@ -139,6 +178,12 @@ int cw_rgi_publish(const cw_rgi_state *s,const char *path) {
     used=(size_t)snprintf(body,sizeof(body),"CWRG1 %llu %llu %d %u %u %u %u %d %u",
         (unsigned long long)s->epoch,(unsigned long long)now,s->active,s->distance,s->bargraph,s->main_element,s->direction,s->z_level,s->lane_count);
     for(i=0;i<s->lane_count&&used<sizeof(body);i++){const cw_rgi_lane *l=&s->lanes[i];used+=(size_t)snprintf(body+used,sizeof(body)-used," %u,%u,%u,%u,%u,%u,%u",l->position,l->direction,l->type,l->marking_left,l->marking_right,l->description,l->guidance);}
+    used+=(size_t)snprintf(body+used,sizeof(body)-used," ");
+    if(!s->current_road[0]) used+=(size_t)snprintf(body+used,sizeof(body)-used,"-");
+    else for(i=0;s->current_road[i]&&used+2<sizeof(body);i++) used+=(size_t)snprintf(body+used,sizeof(body)-used,"%02x",(unsigned char)s->current_road[i]);
+    used+=(size_t)snprintf(body+used,sizeof(body)-used," ");
+    if(!s->turn_to[0]) used+=(size_t)snprintf(body+used,sizeof(body)-used,"-");
+    else for(i=0;s->turn_to[i]&&used+2<sizeof(body);i++) used+=(size_t)snprintf(body+used,sizeof(body)-used,"%02x",(unsigned char)s->turn_to[i]);
     if(used+11>=sizeof(body))return -1;
     body[used++]=' ';crc=crc32_bytes((const uint8_t*)body,used);used+=(size_t)snprintf(body+used,sizeof(body)-used,"%08x\n",crc);
     snprintf(file,sizeof(file),"%s.tmp",path);fd=open(file,O_WRONLY|O_CREAT|O_TRUNC,0600);if(fd<0)return -1;

@@ -56,7 +56,7 @@ def main():
         'org/dsi/ifc/navigation/NavLaneGuidanceData':
         'package org.dsi.ifc.navigation; public class NavLaneGuidanceData { public NavLaneGuidanceData(short a,short b,byte[] c,short d,byte e,byte f,byte g,byte h){} }',
         'de/audi/tghu/navi/app/cluster/CombiBAPListener':
-        'package de.audi.tghu.navi.app.cluster; import org.dsi.ifc.navigation.*; public class CombiBAPListener { void setGALState(boolean v){} void setDistanceToNextManeuver(int a,boolean b,int c){} void setManeuverDescriptor(BapManeuverDescriptor[] v){} void setLaneGuidance(NavLaneGuidanceData[] v,boolean e){} }',
+        'package de.audi.tghu.navi.app.cluster; import org.dsi.ifc.navigation.*; public class CombiBAPListener { void setGALState(boolean v){} void setDistanceToNextManeuver(int a,boolean b,int c){} void setManeuverDescriptor(BapManeuverDescriptor[] v){} void setLaneGuidance(NavLaneGuidanceData[] v,boolean e){} void setCurrentStreet(String v){} }',
     }
     sources = []
     for name, source in stubs.items():
