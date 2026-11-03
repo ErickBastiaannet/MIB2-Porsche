@@ -33,12 +33,19 @@ function fail { echo "ERROR: $*"; exit 1; }
 function rw { mount -uw "$APP"; }
 function ro { mount -ur "$APP"; }
 function reboot_unit {
-    # Never keep the engineering-menu Java caller waiting for the RCC reboot.
-    # The detached command gets no menu pipes, so the wrapper can return at once.
-    echo "Installatie geslaagd. Herstartopdracht wordt verzonden."
-    on -f rcc /usr/apps/mib2_ioc_flash reboot </dev/null >/dev/null 2>&1 &
-    echo "Herstartopdracht verzonden; het menu mag nu worden gesloten"
-    exit 0
+    # Exact K5137 engineering-menu persistence-reset sequence from
+    # eso/hmi/engdefs/scripts/performePersReset.sh in the stock firmware.
+    echo "Installatie geslaagd. Herstart met persistence wordt aangevraagd."
+    sleep 2
+    mount -uw /mnt/system || fail "Systeemvolume niet schrijfbaar voor reset"
+    touch /etc/ooc.allow.reset || fail "Resetvrijgave kon niet worden geplaatst"
+    echo hmi-sys-reset > /dev/ooc/reset || {
+        rm -f /etc/ooc.allow.reset
+        fail "Resetopdracht kon niet worden verzonden"
+    }
+    sleep 2
+    rm -f /etc/ooc.allow.reset
+    echo "Herstartopdracht verzonden"
 }
 
 if [ "$ACTION" = status ]; then
