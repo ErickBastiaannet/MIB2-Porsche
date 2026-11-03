@@ -30,6 +30,16 @@ done
 fail() { echo "ERROR: $*"; exit 1; }
 rw() { mount -uw "$APP"; }
 ro() { mount -ur "$APP"; }
+reboot_unit() {
+    echo "Installatie geslaagd. De unit herstart over 5 seconden."
+    echo "5"; sleep 1
+    echo "4"; sleep 1
+    echo "3"; sleep 1
+    echo "2"; sleep 1
+    echo "1"; sleep 1
+    on -f rcc /usr/apps/mib2_ioc_flash reboot || fail "Herstartopdracht mislukt; herstart de unit handmatig"
+    echo "Herstartopdracht verzonden"
+}
 
 if [ "$ACTION" = status ]; then
     if [ -s "$CONTROLS/confirmed" ]; then echo "Profiel: Controls V15 bevestigd"
@@ -103,7 +113,8 @@ install-controls)
     stage_file "$CONTROLS/lsd-controls.sh" "$LSD" || { ro; fail "Controls HMI-starter mislukt"; }
     stage_file "$CONTROLS/launcher.sh" "$DIO" || { ro; fail "Controls DIO-starter mislukt"; }
     ro || fail "Appvolume niet read-only"
-    echo "Controls V15 klaar voor een proefboot. Bevestig alleen als PCM, CarPlay, zoom en pijlen werken."
+    echo "Controls V15 klaar voor de proefboot. Bevestig alleen als PCM, CarPlay, zoom en pijlen werken."
+    reboot_unit
     ;;
 confirm-controls)
     [ -s "$CONTROLS/enabled" ] || fail "Controls V15 niet geinstalleerd"
