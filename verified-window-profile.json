@@ -1,0 +1,45 @@
+{
+  "firmware": "MHI2_ER_POG24_K5137_MU1417_971919360T",
+  "verified_on": "2026-11-02",
+  "scope": "Five-second colorbar test; not actual CarPlay video or a duration test",
+  "display": {
+    "terminal": "2nd_lvds",
+    "report_index": 1,
+    "backend_id": 4,
+    "width": 800,
+    "height": 480
+  },
+  "composition": {
+    "test_context": 70,
+    "ordered_displayables": [
+      78,
+      33
+    ],
+    "original_map_displayable": 33,
+    "test_window_displayable": 78,
+    "original_context": 72,
+    "renderer": "KD/EGL compositor-owned window"
+  },
+  "external_preconditions": {
+    "vehicle_stationary": true,
+    "original_cluster_map_selected": true,
+    "satellite_imagery_enabled": false,
+    "satellite_setting_source": "Changed manually by user; confirmed by user and PCM screenshot",
+    "numeric_satellite_setting_read_from_unit": false,
+    "request_confirmation_immediately_before_visible_test": true
+  },
+  "test": {
+    "mode": "--visible-window-overlay-top-5s",
+    "duration_seconds": 5,
+    "user_confirmed_colorbars": true,
+    "user_confirmed_google_logo_absent_with_satellite_disabled": true,
+    "unit_confirmed_original_context_restored": true,
+    "current_status_confirmed_original_map_present_and_test_window_removed": true,
+    "executable_sha256": "fdf56a8c3ba8cce9024c13ceafbf3464b88b4bcace9f2c7732854e60142904c9"
+  },
+  "configuration_sha256": "115df2ffd860a6adccd4dd10c643a13b575a439922b272942025df8c7c246202",
+  "display_library_sha256": "938efc826f7023869b44db49b1270e6235fe4564a0ca903881a41fe2c7f1a3c7",
+  "automatic_satellite_toggle_implemented": false,
+  "automatic_satellite_preference_restore_implemented": false,
+  "actual_carplay_video_integrated": false
+}

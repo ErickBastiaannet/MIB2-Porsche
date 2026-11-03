@@ -1,0 +1,186 @@
+{
+  "firmware": "MHI2_ER_POG24_K5137_MU1417_971919360T",
+  "evidence_scope": "Physical iPhone CarPlay video, native decode, KD/EGL rendering and context 70 output verified on the Panamera; durable installation and reconnect endurance remain unvalidated",
+  "runtime_dimensions": {
+    "width": 800,
+    "height": 480,
+    "source": "Physical unit displaymanager gs/gd, 2026-11-02"
+  },
+  "active_transport": "2nd_lvds",
+  "airplay": {
+    "library_sha256": "816f1fa8b333ca091676cea65d405f36adb82ceee5119eb6f8f99538678b527a",
+    "session_key_offset": 456,
+    "session_iv_offset": 472,
+    "function_bytes": 108,
+    "function_fnv1a": 2480334254,
+    "verification_tool": "build-tools/verify_native.py"
+  },
+  "display_manager": {
+    "logical_cluster_terminal": 1,
+    "legacy_java_dsi_display_id": 4,
+    "mapping_source": "Unit-verified production displaymanager.json, extended.2_lvds.displays: 2nd_lvds has ID 4. dmdt gs labels vector indices, not backend IDs.",
+    "backend_display_id": 4,
+    "decoder_output_index": 1,
+    "configuration_sha256": "115df2ffd860a6adccd4dd10c643a13b575a439922b272942025df8c7c246202",
+    "contexts": {
+      "72": [
+        33
+      ],
+      "76": [
+        58
+      ],
+      "74": [
+        20,
+        102,
+        101,
+        33
+      ],
+      "77": [
+        20,
+        102,
+        101,
+        58
+      ]
+    },
+    "context_source": "DisplayManagerMIB2High.defineContexts; G24 may add 79 and displayable 20",
+    "runtime_query": "dmdt gd, gc, gs",
+    "observed_dmdt_display_index": 1,
+    "java_dsi_mapping_warning": "Use backend ID 4 for sc, hardware index 1 for NvSS. getSystemInformation prints a vector-loop counter: libdmdt_core.so 0x5594-0x559c."
+  },
+  "encoder_defaults": {
+    "source": "efs-system.img: etc/eso/production/displaymanager.json",
+    "source_sha256": "115df2ffd860a6adccd4dd10c643a13b575a439922b272942025df8c7c246202",
+    "most_device": "/dev/mlb/isoTX2",
+    "channel_bit_rate": 12288000,
+    "encoder_bit_rate": 9600000,
+    "video_over_most_routing": "component_control"
+  },
+  "not_a_confirmed_resolution": "GUIKombiMOST fallback 800x298",
+  "candidate_contexts": {
+    "70": [
+      78,
+      33
+    ]
+  },
+  "sd_candidate_available": true,
+  "physical_unit_verified": true,
+  "runtime_java_class_version": 48,
+  "implementation": "native video and iAP2 RGI capture with a verified Java 1.4-compatible BAP bridge; transactional DIO/HMI wrappers",
+  "feature_completeness": {
+    "right_cluster_carplay_video": true,
+    "left_dial_turn_arrows": true,
+    "maneuver_distance": true,
+    "lane_guidance": true,
+    "reason": "Implemented end-to-end: iAP2 Identify/0x5200 negotiation, 0x5201..0x5204 parsing, atomic CRC state and exact MU1417 CombiBAPListener bridge. Physical verification of the semantic path remains required."
+  },
+  "nvss_library_sha256": "b57f3eb1697c6846d06a1c546ad8b06834c630ccfac88c6ea6787dd5ccc41475",
+  "physical_hidden_decode": {
+    "date": "2026-11-02",
+    "width": 800,
+    "height": 480,
+    "result": "HIDDEN_DECODE_PASS_CONTEXT_UNCHANGED",
+    "frame_source": "Locally generated H264 baseline IDR; no iPhone stream",
+    "library_path": "/mnt/app/armle/lib:/mnt/app/armle/usr/lib:/mnt/app/root/lib-target"
+  },
+  "physical_visible_test": {
+    "date": "2026-11-02",
+    "backend_display_id": 4,
+    "decoder_output_index": 1,
+    "context_switch_confirmed": true,
+    "picture_confirmed": false,
+    "user_observation": "brief flicker and temporary map-unavailable message; original map returned",
+    "direct_stream_route_withdrawn": true
+  },
+  "window_renderer": {
+    "implementation": "KD/EGL compositor-owned window",
+    "local_failure_stages_tested": 13,
+    "qnx_build_available": true,
+    "physical_unit_tested": true,
+    "carplay_video_integration_complete": true,
+    "physical_window_registration_verified": true,
+    "physical_colorbars_confirmed": true,
+    "verified_context_id": 70,
+    "verified_context_displayables": [
+      78,
+      33
+    ],
+    "user_observation": "Colorbars visible with original map retained; user confirmed Google logo absent after manually disabling satellite imagery",
+    "duration_tested_seconds": 5,
+    "verified_recipe": "verified-window-profile.json",
+    "satellite_imagery_precondition": false,
+    "automatic_satellite_toggle_implemented": false,
+    "candidate_video_integration_built": true,
+    "physical_carplay_stream_verified": true,
+    "decoder_renderer_process_isolation": true
+  },
+  "physical_yuv_pipeline": {
+    "date": "2026-11-02",
+    "frame_source": "Locally generated single-frame H264 baseline, RGB #204060; not an iPhone stream",
+    "width": 800,
+    "height": 480,
+    "decoded_bytes": 576000,
+    "decoded_i420_fnv1a": "7719a4c5",
+    "reference_decoder_fnv1a": "7719a4c5",
+    "rendered_rgba": [
+      31,
+      64,
+      98,
+      255
+    ],
+    "reference_rgb": [
+      32,
+      64,
+      96
+    ],
+    "max_observed_channel_difference": 2,
+    "result": "HIDDEN_YUV_WINDOW_PASS_CONTEXT_UNCHANGED",
+    "context_switched": false,
+    "startup_files_changed": false,
+    "decoder_capture": "NvSS parser DisplayPicture callback in presentation order",
+    "processes": "Decoder child and EGL renderer parent; fork before loading GPU libraries",
+    "same_process_decoder_and_egl_withdrawn": true,
+    "nvmedia_sha256": "69f1555d5f6de4ebf9ee3bc30dbc73df2fc82bcba32456d0df48bb0f0e30da52",
+    "nvparser_sha256": "56b7f7195984ad76223f94c24b954c2bcc79a8f6125d30aa9265470d83bd2e94"
+  },
+  "physical_carplay_negotiation": {
+    "date": "2026-11-02",
+    "phone_accepted_alternate_display": true,
+    "show_ui_acknowledged": true,
+    "carplay_interface": "carplay0",
+    "observed_transport": "IPv6 only on carplay0; stock video established over tcp6",
+    "ipv4_only_receiver_withdrawn": true,
+    "ipv6_receiver_built_and_staged": true,
+    "ipv6_listener_verified_on_unit": true,
+    "alternate_video_connection_received": true,
+    "physical_carplay_map_visible": true,
+    "physical_validation_result": "CARPLAY_ACTIVE display=1 context=70 size=800x480; user confirmed Apple Maps content on right instrument display",
+    "application_behavior": "Apple Maps supplied visible alternate-display map pixels during active route guidance. Switching to Google Maps kept the CarPlay cluster context active but produced a black instrument display; the original Porsche map was therefore hidden even though no useful Google map pixels were visible.",
+    "black_frame_fallback_implemented": true,
+    "black_frame_policy": "Decoded I420 luma is validated before publication. Blank, nominal-black, low-contrast and malformed frames cannot activate context 70. If an already visible stream becomes blank, the supervisor immediately restores the recorded OEM map context while leaving the decoder available for later useful frames.",
+    "observed_avcc_config_hex": "0164001fffe100142764001fac131450320f69b8086830368221196001000428ee3cb002000000",
+    "airplay_avcc_suffix": "02000000 accepted only as the physically observed four-byte AirPlay display extension",
+    "temporary_dio_starter_restore_confirmed": true,
+    "restore_first_on_next_connection": false,
+    "restore_blocker": null,
+    "hmi_startup_files_changed": false,
+    "source_of_evidence": "Physical v14 test logs, tcp6 connection, decrypted AVCC frames, decoder/renderer readiness, CARPLAY_ACTIVE and user screen observation",
+    "fixed_port_7001_built": true,
+    "fixed_port_phone_validation": true,
+    "firewall_reference": {
+      "image": "MMX2/efs-sys/70/default/efs-system.img",
+      "path": "/etc/pf.conf",
+      "sha256": "5d0d5a285b52ef6b5af27dcdd91ca3d5ad103932a842de9e1ea3941613cc541f",
+      "allowed_carplay_tcp_range": [
+        7000,
+        7001
+      ],
+      "following_rule": "block drop in quick on carplay0 all",
+      "last_failed_listener_port": 65456,
+      "corrected_listener_port": 7001,
+      "debug_transfer_port": 22110,
+      "live_drop_counters_captured": false
+    },
+    "local_listener_test": "Real production socket factory accepted IPv6 loopback TCP on 7001; SETUP response advertised 7001",
+    "pending_temporary_starter_sha256": null
+  }
+}

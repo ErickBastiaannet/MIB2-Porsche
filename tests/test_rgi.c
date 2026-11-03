@@ -1,0 +1,24 @@
+#include "porsche_rgi.h"
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+static void be16(unsigned char *p,unsigned v){p[0]=(unsigned char)(v>>8);p[1]=(unsigned char)v;}
+static size_t tlv(unsigned char *p,unsigned id,const unsigned char *v,size_t n){be16(p,(unsigned)(n+4));be16(p+2,id);if(n)memcpy(p+4,v,n);return n+4;}
+static size_t message(unsigned char *p,unsigned id,const unsigned char *body,size_t n){p[0]=p[1]=0x40;be16(p+2,(unsigned)(n+6));be16(p+4,id);if(n)memcpy(p+6,body,n);return n+6;}
+
+int main(void){
+    unsigned char body[256],m[512],out[768],v[8];size_t b=0,n,z;cw_rgi_state s;memset(&s,0,sizeof(s));s.epoch=1;
+    z=cw_rgi_component(out,sizeof(out),0x10);assert(z>60&&out[2]==0&&out[3]==0x1e);
+    n=message(m,0x1d01,NULL,0);z=cw_rgi_patch_identify(out,sizeof(out),m,n,0x10);assert(z>n&&out[4]==0x1d&&out[5]==1);
+    z=cw_rgi_start(out,sizeof(out),0x10);assert(z==24&&out[4]==0x52&&out[5]==0);
+    v[0]=1;b+=tlv(body+b,1,v,1);v[0]=0;v[1]=0;v[2]=1;v[3]=0xf4;b+=tlv(body+b,10,v,4);n=message(m,0x5201,body,b);
+    assert(cw_rgi_consume(&s,m,n)==1&&s.active&&s.distance==500&&s.bargraph==127);
+    b=0;v[0]=1;b+=tlv(body+b,3,v,1);v[0]=0;b+=tlv(body+b,8,v,1);b+=tlv(body+b,9,v,1);n=message(m,0x5202,body,b);
+    assert(cw_rgi_consume(&s,m,n)==1&&s.main_element==13&&s.direction==64);
+    b=0;{unsigned char lane[32];size_t q=0;v[0]=0;v[1]=1;q+=tlv(lane+q,0,v,2);v[0]=2;q+=tlv(lane+q,1,v,1);v[0]=0;v[1]=0xc0;q+=tlv(lane+q,3,v,2);b+=tlv(body+b,2,lane,q);}n=message(m,0x5204,body,b);
+    assert(cw_rgi_consume(&s,m,n)==1&&s.lane_count==1&&s.lanes[0].position==1&&s.lanes[0].direction==192);
+    assert(cw_rgi_publish(&s,"/tmp/cw-rgi-test") == 0);assert(access("/tmp/cw-rgi-test",R_OK)==0);unlink("/tmp/cw-rgi-test");
+    puts("PORSCHE_RGI_PASS identify, subscription, updates, maneuver, lanes, atomic state");return 0;
+}

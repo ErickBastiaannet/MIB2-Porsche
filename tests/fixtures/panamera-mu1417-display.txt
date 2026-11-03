@@ -1,0 +1,16 @@
+displaymanager reports the following system information:
+	number of displayables: 6
+	number of displays: 2
+display 0:
+	name: display0
+	terminal: main
+	size: 1440 x 540
+	context id: 10
+		16 (DISPLAYABLE_HMI)
+		19 (DISPLAYABLE_MAPVIEWER)
+display 1:
+	name: display1
+	terminal: 2nd_lvds
+	size: 800 x 480
+	context id: 72
+		33 (DISPLAYABLE_KOMBI_MAP_VIEW)
