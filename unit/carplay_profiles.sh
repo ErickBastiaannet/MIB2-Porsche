@@ -27,10 +27,10 @@ for SD in /fs/sda0 /fs/sdb0; do
     fi
 done
 
-fail() { echo "ERROR: $*"; exit 1; }
-rw() { mount -uw "$APP"; }
-ro() { mount -ur "$APP"; }
-reboot_unit() {
+function fail { echo "ERROR: $*"; exit 1; }
+function rw { mount -uw "$APP"; }
+function ro { mount -ur "$APP"; }
+function reboot_unit {
     echo "Installatie geslaagd. De unit herstart over 5 seconden."
     echo "5"; sleep 1
     echo "4"; sleep 1
@@ -54,48 +54,48 @@ fi
 [ -n "$PAYLOAD" ] || fail "CarPlay-profielen ontbreken op SD"
 TOOL=$PAYLOAD/stable/cw-window-candidate
 [ -x "$TOOL" ] || fail "Verifier ontbreekt"
-hash() { "$TOOL" --hash "$1"; }
-verify_payload() {
+function hash_file { "$TOOL" --hash "$1"; }
+function verify_payload {
     BASE=$1
     EXPECTED_MANIFEST=$2
-    [ "$(hash "$BASE/payload.manifest")" = "$EXPECTED_MANIFEST" ] || return 1
+    [ "$(hash_file "$BASE/payload.manifest")" = "$EXPECTED_MANIFEST" ] || return 1
     while IFS=' ' read -r EXPECTED NAME; do
         case "$NAME" in */*|*..*) return 1;; esac
-        [ "$(hash "$BASE/$NAME")" = "$EXPECTED" ] || return 1
+        [ "$(hash_file "$BASE/$NAME")" = "$EXPECTED" ] || return 1
     done < "$BASE/payload.manifest"
 }
 verify_payload "$PAYLOAD/stable" '@STABLE_MANIFEST_SHA@' || fail "Stable V14-payload beschadigd"
 verify_payload "$PAYLOAD/controls" '@CONTROLS_MANIFEST_SHA@' || fail "Controls V15-payload beschadigd"
-[ "$(hash "$TOOL")" = '@VERIFIER_SHA@' ] || fail "Onbekende verifier"
+[ "$(hash_file "$TOOL")" = '@VERIFIER_SHA@' ] || fail "Onbekende verifier"
 
-ensure_stock() {
+function ensure_stock {
     [ -s "$DIO.cw-stock" ] || fail "OEM DIO-back-up ontbreekt"
     [ -s "$LSD.cw-stock" ] || fail "OEM HMI-back-up ontbreekt"
-    [ "$(hash "$DIO.cw-stock")" = "$DIO_STOCK_SHA" ] || fail "OEM DIO-back-up ongeldig"
-    [ "$(hash "$LSD.cw-stock")" = "$LSD_STOCK_SHA" ] || fail "OEM HMI-back-up ongeldig"
+    [ "$(hash_file "$DIO.cw-stock")" = "$DIO_STOCK_SHA" ] || fail "OEM DIO-back-up ongeldig"
+    [ "$(hash_file "$LSD.cw-stock")" = "$LSD_STOCK_SHA" ] || fail "OEM HMI-back-up ongeldig"
 }
-stage_file() {
+function stage_file {
     SOURCE=$1
     TARGET=$2
     cp -p "$SOURCE" "$TARGET.cw-new" || return 1
     mv -f "$TARGET.cw-new" "$TARGET" || return 1
 }
-copy_checked() {
+function copy_checked {
     SOURCE=$1
     TARGET=$2
     cp -p "$SOURCE" "$TARGET" || return 1
-    [ "$(hash "$TARGET")" = "$(hash "$SOURCE")" ] || return 1
+    [ "$(hash_file "$TARGET")" = "$(hash_file "$SOURCE")" ] || return 1
 }
-begin_switch() {
+function begin_switch {
     cp -p "$DIO" "$ROOT/.switch-dio" || return 1
     cp -p "$LSD" "$ROOT/.switch-lsd" || { rm -f "$ROOT/.switch-dio"; return 1; }
 }
-rollback_switch() {
+function rollback_switch {
     stage_file "$ROOT/.switch-lsd" "$LSD" 2>/dev/null
     stage_file "$ROOT/.switch-dio" "$DIO" 2>/dev/null
     rm -f "$ROOT/.switch-lsd" "$ROOT/.switch-dio"
 }
-finish_switch() {
+function finish_switch {
     rm -f "$ROOT/.switch-lsd" "$ROOT/.switch-dio"
 }
 

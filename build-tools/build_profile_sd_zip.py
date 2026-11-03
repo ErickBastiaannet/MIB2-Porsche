@@ -1,6 +1,7 @@
 """Build one SD overlay that can switch safely between OEM, stable V14 and Controls V15."""
 import hashlib
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -49,6 +50,8 @@ def main() -> None:
     manager = manager.replace('@VERIFIER_SHA@', expected['cw-window-candidate'])
     if '@' in manager:
         raise SystemExit('Unresolved manager placeholder')
+    if re.search(r'(?m)^\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\)\s*\{', manager):
+        raise SystemExit('QNX-incompatible shell function syntax; use: function name {')
 
     menu = (ROOT / 'templates/OnlineMenu.esd').read_text(encoding='utf-8') + '''
 
