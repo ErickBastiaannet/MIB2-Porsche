@@ -11,6 +11,12 @@ if [ ! -s "$CW_PERSIST/enabled" ] || [ ! -x "$CW_PERSIST/cw-window-candidate" ] 
 fi
 
 mkdir -p "$CW_ROOT" "$CW_LOG_ROOT" || exec "$CW_STOCK" "$@"
+# The supervisor deliberately requires a per-session opt-in marker before it
+# may take over the cluster context.  The persistent controller writes its
+# marker below /mnt/app, but every fresh RAM runtime needs its own marker too.
+# Without this file the capture path still receives valid 800x480 frames while
+# the renderer remains in alive=0 and never opens the cluster window.
+echo enabled > "$CW_ROOT/enabled" || exec "$CW_STOCK" "$@"
 cp "$CW_PERSIST/cw-window-candidate" "$CW_ROOT/cw-window-candidate" || exec "$CW_STOCK" "$@"
 cp "$CW_PERSIST/cw-receiver-v6.so" "$CW_ROOT/cw-receiver-v6.so" || exec "$CW_STOCK" "$@"
 cp "$CW_PERSIST/libcw-query-stdio.so" "$CW_ROOT/libcw-query-stdio.so" || exec "$CW_STOCK" "$@"

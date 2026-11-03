@@ -1,11 +1,27 @@
 """Build the persistent SD package for the physically verified v14 path."""
 import hashlib
 import json
+import os
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = ROOT.parent.parent
+
+
+def online_menu_source() -> Path:
+    """Resolve the Online Menu template after this tool became its own repo."""
+    configured = os.environ.get('CONNECTWOW_ONLINE_MENU_ESD')
+    candidates = [
+        Path(configured) if configured else None,
+        ROOT / 'templates/OnlineMenu.esd',
+        ROOT.parent / 'mqb-backend-private/resources/online-setup/source/install/esd/OnlineMenu.esd',
+    ]
+    for candidate in candidates:
+        if candidate is not None and candidate.is_file():
+            return candidate
+    raise SystemExit(
+        'OnlineMenu.esd not found; set CONNECTWOW_ONLINE_MENU_ESD or add templates/OnlineMenu.esd'
+    )
 
 
 def sha(data: bytes) -> str:
@@ -30,7 +46,7 @@ def main() -> None:
             raise SystemExit(f'Refusing to package non-v14 artifact: {name}')
     manifest = ''.join(f'{sha(data)} {name}\n' for name, data in files.items()).encode()
     entry = (ROOT / 'unit/carplay_verified_test.sh').read_bytes()
-    menu = (REPO / 'resources/online-setup/source/install/esd/OnlineMenu.esd').read_text(encoding='utf-8')
+    menu = online_menu_source().read_text(encoding='utf-8')
     menu += '''
 
 # Switchable Porsche MU1417 CarPlay test; automatically restores OEM DIO
