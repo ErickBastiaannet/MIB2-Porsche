@@ -8,6 +8,7 @@
 
 static uint16_t be16(const uint8_t *p) { return (uint16_t)((p[0] << 8) | p[1]); }
 static uint32_t be32(const uint8_t *p) { return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3]; }
+static uint64_t be64(const uint8_t *p) { return ((uint64_t)be32(p) << 32) | be32(p + 4); }
 static void put16(uint8_t *p, uint16_t v) { p[0]=(uint8_t)(v>>8); p[1]=(uint8_t)v; }
 
 static int text_copy(char *out,size_t cap,const uint8_t *in,size_t n) {
@@ -83,11 +84,15 @@ static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
     while (tlv_next(m,n,&o,&id,&v,&vn)) {
         if (id==1 && vn>=1) { s->active=v[0]!=0; changed=1; }
         else if (id==3) { text_copy(s->current_road,sizeof(s->current_road),v,vn); changed=1; }
+        else if (id==4) { text_copy(s->destination,sizeof(s->destination),v,vn); changed=1; }
+        else if (id==6 && vn>=8) { s->time_remaining=be64(v); changed=1; }
+        else if (id==7 && vn>=4) { s->distance_remaining=be32(v); changed=1; }
         else if (id==10 && vn>=4) { s->distance=be32(v); s->bargraph=s->distance>=1000?255:(uint8_t)((s->distance*255U)/1000U); changed=1; }
         else if (id==13 && vn>=2) {
             unsigned index=vn>=4?be16(v+2):be16(v);
             select_maneuver(s,index); changed=1;
         }
+        else if (id==0x12 && vn>=1) { s->lane_visibility=v[0]?2:1; changed=1; }
     }
     return changed;
 }
@@ -144,7 +149,8 @@ int cw_rgi_consume(cw_rgi_state *s,const uint8_t *m,size_t n) {
     else if (id==0x5203) {
         s->active=0; s->lane_count=0; s->maneuver_index=0;
         memset(s->maneuvers,0,sizeof(s->maneuvers));
-        s->current_road[0]=0; s->turn_to[0]=0; changed=1;
+        s->current_road[0]=0; s->turn_to[0]=0; s->destination[0]=0;
+        s->distance_remaining=0; s->time_remaining=0; s->lane_visibility=0; changed=1;
     }
     else if (id==0x5204) changed=parse_lanes(s,m,n);
     if (changed) ++s->epoch;
@@ -178,8 +184,9 @@ size_t cw_rgi_start(uint8_t *o,size_t cap,uint16_t cid) {
 int cw_rgi_publish(const cw_rgi_state *s,const char *path) {
     char body[2048],tmp[256],file[256]; size_t used; unsigned i; int fd; uint32_t crc; time_t now=time(NULL);
     if(!s||!path||strlen(path)>230)return -1;
-    used=(size_t)snprintf(body,sizeof(body),"CWRG1 %llu %llu %d %u %u %u %u %d %u",
-        (unsigned long long)s->epoch,(unsigned long long)now,s->active,s->distance,s->bargraph,s->main_element,s->direction,s->z_level,s->lane_count);
+    used=(size_t)snprintf(body,sizeof(body),"CWRG2 %llu %llu %d %u %u %u %u %d %u %u %llu %u",
+        (unsigned long long)s->epoch,(unsigned long long)now,s->active,s->distance,s->bargraph,s->main_element,s->direction,s->z_level,s->lane_count,
+        s->distance_remaining,(unsigned long long)s->time_remaining,s->lane_visibility);
     for(i=0;i<s->lane_count&&used<sizeof(body);i++){const cw_rgi_lane *l=&s->lanes[i];used+=(size_t)snprintf(body+used,sizeof(body)-used," %u,%u,%u,%u,%u,%u,%u",l->position,l->direction,l->type,l->marking_left,l->marking_right,l->description,l->guidance);}
     used+=(size_t)snprintf(body+used,sizeof(body)-used," ");
     if(!s->current_road[0]) used+=(size_t)snprintf(body+used,sizeof(body)-used,"-");
@@ -187,6 +194,9 @@ int cw_rgi_publish(const cw_rgi_state *s,const char *path) {
     used+=(size_t)snprintf(body+used,sizeof(body)-used," ");
     if(!s->turn_to[0]) used+=(size_t)snprintf(body+used,sizeof(body)-used,"-");
     else for(i=0;s->turn_to[i]&&used+2<sizeof(body);i++) used+=(size_t)snprintf(body+used,sizeof(body)-used,"%02x",(unsigned char)s->turn_to[i]);
+    used+=(size_t)snprintf(body+used,sizeof(body)-used," ");
+    if(!s->destination[0]) used+=(size_t)snprintf(body+used,sizeof(body)-used,"-");
+    else for(i=0;s->destination[i]&&used+2<sizeof(body);i++) used+=(size_t)snprintf(body+used,sizeof(body)-used,"%02x",(unsigned char)s->destination[i]);
     if(used+11>=sizeof(body))return -1;
     body[used++]=' ';crc=crc32_bytes((const uint8_t*)body,used);used+=(size_t)snprintf(body+used,sizeof(body)-used,"%08x\n",crc);
     snprintf(file,sizeof(file),"%s.tmp",path);fd=open(file,O_WRONLY|O_CREAT|O_TRUNC,0600);if(fd<0)return -1;

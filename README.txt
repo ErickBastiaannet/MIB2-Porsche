@@ -25,7 +25,13 @@ Werking
   CombiBAPListener aan het linker fysieke scherm aangeboden.
 * De standaard Porsche-zoomrol blijft signed MapScale-stappen ontvangen. CarPlay
   vertaalt die naar de semantische iOS-opdracht 0=in / 1=uit; de kaart-app
-  bepaalt daarna zelf de meterschaal die in beeld verschijnt.
+  bepaalt daarna zelf de meterschaal die in beeld verschijnt. De originele
+  Porsche-schaaladministratie en BAP-bevestiging blijven daarbij doorlopen,
+  zodat de schaalweergave niet kunstmatig op 100 m blijft staan.
+* Een keuze in de bestaande Porsche-autozoominstelling roept CarPlay `showUI`
+  aan. Dat brengt de actieve CarPlay-kaart terug in beeld en werkt daarmee als
+  veilige hercentreeractie; CarPlay biedt geen bewezen generieke opdracht om
+  de zoomstand van iedere kaartapp te resetten.
 * Zoomcommando's worden uitsluitend bij een verse CarPlay-videolease gestuurd,
   maximaal acht stappen gebundeld, 50 ms uit elkaar en maximaal 250 ms oud.
   Omkeren wist nog niet verstuurde stappen; een nieuwe videosessie kan nooit

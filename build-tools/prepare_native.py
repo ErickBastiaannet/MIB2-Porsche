@@ -159,10 +159,21 @@ def main():
         # stock Porsche day/night state to the UUID-addressed cluster screen.
         text = text.replace(
             '} else if (!status && strcmp(type, "requestUI") == 0) {',
-            '} else if (!status && strcmp(type, "setNightMode") == 0) {\n'
+            '} else if (!status && strcmp(type, "showUI") == 0) {\n'
+            '        status = set_cstring(params, "uuid", ALT_UUID);\n'
+            '    } else if (!status && strcmp(type, "setNightMode") == 0) {\n'
             '        status = set_cstring(params, "uuid", ALT_UUID);\n'
             '        if (!status) status = set_int(params, "nightMode", zoom_direction ? 1 : 0);\n'
             '    } else if (!status && strcmp(type, "requestUI") == 0) {',
+            1,
+        )
+        text = text.replace(
+            '    } else if (url) {\n'
+            '        send_map_semantic_command(session, "requestUI", url, -1);',
+            '    } else if (strcmp(command, "show-map") == 0) {\n'
+            '        send_map_semantic_command(session, "showUI", NULL, -1);\n'
+            '    } else if (url) {\n'
+            '        send_map_semantic_command(session, "requestUI", url, -1);',
             1,
         )
         map_end = text.index('#endif /* ALTSCREEN_RUNTIME_MAP_CONTROL */')

@@ -56,7 +56,7 @@ def main():
         'org/dsi/ifc/navigation/NavLaneGuidanceData':
         'package org.dsi.ifc.navigation; public class NavLaneGuidanceData { public NavLaneGuidanceData(short a,short b,byte[] c,short d,byte e,byte f,byte g,byte h){} }',
         'de/audi/tghu/navi/app/cluster/CombiBAPListener':
-        'package de.audi.tghu.navi.app.cluster; import org.dsi.ifc.navigation.*; public class CombiBAPListener { void setGALState(boolean v){} void setDistanceToNextManeuver(int a,boolean b,int c){} void setManeuverDescriptor(BapManeuverDescriptor[] v){} void setLaneGuidance(NavLaneGuidanceData[] v,boolean e){} void setCurrentStreet(String v){} }',
+        'package de.audi.tghu.navi.app.cluster; import org.dsi.ifc.navigation.*; public class CombiBAPListener { int distanceCalls,destinationDistance,destinationTime,clearCalls; void setGALState(boolean v){if(!v)clearCalls++;} void setDistanceToNextManeuver(int a,boolean b,int c){distanceCalls++;} void setManeuverDescriptor(BapManeuverDescriptor[] v){} void setLaneGuidance(NavLaneGuidanceData[] v,boolean e){} void setCurrentStreet(String v){} void setRgDistanceToNextDestination(int v,boolean valid){destinationDistance=v;} void setRgTimeToNextDestination(long v,boolean eta,boolean valid){destinationTime=(int)(v/1000L);} }',
     }
     sources = []
     for name, source in stubs.items():
@@ -79,6 +79,7 @@ def main():
     notifications = build / 'PorscheCarPlayNotifications.experimental.jar'
     run('java', *exports, '-cp', build, 'BuildPorscheHooks', combined, classes, output, notifications)
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'NotificationFixture')
+    run('java', '-cp', classes, 'de.audi.tghu.navi.app.cluster.RouteGuidanceTextFixture', str(build / 'guidance-fixture.state'))
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'org.connectwow.tests.ClusterFixture', str(build / 'cluster-fixture'))
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'org.connectwow.tests.ControlsFixture', str(build / 'fixture'))
     (build / 'build-manifest.json').write_text(json.dumps({

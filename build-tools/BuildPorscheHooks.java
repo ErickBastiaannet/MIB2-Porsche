@@ -77,19 +77,19 @@ public final class BuildPorscheHooks {
                             switchHooks++;
                         }
                         if (scale) {
-                            Label stock = new Label();
+                            // Forward the signed BAP step to CarPlay, but keep the
+                            // complete stock K5137 method. Its activeContext.increment
+                            // updates the Porsche scale model and its final
+                            // updateMapScale() supplies the mandatory SetGet ACK.
                             super.visitVarInsn(Opcodes.ILOAD, 1);
                             super.visitMethodInsn(Opcodes.INVOKESTATIC, CONTROLS, "consumeMapScale", "(I)Z", false);
-                            super.visitJumpInsn(Opcodes.IFEQ, stock);
-                            super.visitVarInsn(Opcodes.ALOAD, 0);
-                            super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, COMBI, "updateMapScale", "()V", false);
-                            super.visitInsn(Opcodes.RETURN);
-                            super.visitLabel(stock);
+                            super.visitInsn(Opcodes.POP);
                             scaleHooks++;
                         }
                         if (scaleSetting) {
                             Label stock = new Label();
-                            super.visitMethodInsn(Opcodes.INVOKESTATIC, ROUTER, "carPlayOwnsCluster", "()Z", false);
+                            super.visitVarInsn(Opcodes.ILOAD, 1);
+                            super.visitMethodInsn(Opcodes.INVOKESTATIC, CONTROLS, "consumeMapScaleSetting", "(I)Z", false);
                             super.visitJumpInsn(Opcodes.IFEQ, stock);
                             super.visitInsn(Opcodes.RETURN);
                             super.visitLabel(stock);

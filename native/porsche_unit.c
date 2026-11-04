@@ -524,6 +524,9 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
     cw_geometry negotiated;
     unsigned tries;
     int previous_alive = -1, previous_valid = -1;
+    pid_t startup_owner = 0;
+    cw_geometry startup_geometry;
+    uint64_t startup_since = 0;
     for (tries = 0; tries < 30; ++tries) {
         lock = open(LOCK, O_CREAT | O_EXCL | O_WRONLY, 0600);
         if (lock >= 0)
@@ -582,6 +585,7 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
         char enabled[512];
         unsigned actions;
         int alive = source_ready(owner), valid = cw_geometry_read(GEOMETRY, now, &geometry);
+        int startup_stable = 0;
         if (snprintf(enabled, sizeof(enabled), "%s/enabled", root) >= (int)sizeof(enabled) ||
             access(enabled, F_OK) != 0)
             alive = 0;
@@ -594,6 +598,29 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
                     alive, valid, (long)owner);
             previous_alive = alive;
             previous_valid = valid;
+        }
+        /* A cold PCM boot can publish a valid geometry before the CarPlay
+         * owner and displaymanager context have settled. Starting a decoder
+         * on that first sample caused the observed preflight failure followed
+         * by one or two throw-away workers. Require the same owner and stream
+         * geometry for a short, monotonic interval before the first worker.
+         * Retries of an already stable session are not delayed again. */
+        if (alive && valid && geometry.active) {
+            uint64_t monotonic_now = cw_monotonic_ms();
+            if (startup_owner != owner || !startup_since ||
+                cw_geometry_session(&startup_geometry, &geometry) != 1) {
+                startup_owner = owner;
+                startup_geometry = geometry;
+                startup_since = monotonic_now;
+                fprintf(stderr, "CARPLAY_SOURCE_STABILIZING owner=%ld size=%ux%u\n",
+                        (long)owner, geometry.width, geometry.height);
+            } else if (monotonic_now >= startup_since &&
+                       monotonic_now - startup_since >= 1200) {
+                startup_stable = 1;
+            }
+        } else {
+            startup_owner = 0;
+            startup_since = 0;
         }
         actions = child > 0 ? cw_session_update(&session, valid ? &geometry : NULL, now,
                                                 alive ? (uint32_t)owner : 0, 1)
@@ -616,7 +643,8 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
                 retry_at = cw_monotonic_ms() + 2000;
             }
         }
-        if (child <= 0 && alive && valid && geometry.active && cw_monotonic_ms() >= retry_at) {
+        if (child <= 0 && alive && valid && geometry.active && startup_stable &&
+            cw_monotonic_ms() >= retry_at) {
             char text[16384];
             cw_display display;
             if (cw_dm_query(root, "gs", text, sizeof(text)) && cw_dm_display(text, &display) &&

@@ -65,7 +65,10 @@ def main() -> None:
     })
 
     controls = {
-        'cw-window-candidate': stable['cw-window-candidate'],
+        # Controls V15 owns the current supervisor as well as the Java/native
+        # controls bridge. Stable V14 deliberately retains the physically
+        # proven binary above as an independent recovery profile.
+        'cw-window-candidate': (ROOT / 'build/qnx/porsche-carplay-window-candidate').read_bytes(),
         'cw-receiver-controls.so': (ROOT / 'build/qnx/libcw-porsche-capture_receiver.so').read_bytes(),
         'cw-rgi.so': (ROOT / 'build/qnx/libcw-porsche-rgi.so').read_bytes(),
         'libcw-query-stdio.so': stable['libcw-query-stdio.so'],

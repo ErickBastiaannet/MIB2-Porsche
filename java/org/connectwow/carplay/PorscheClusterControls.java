@@ -8,11 +8,14 @@ import java.net.InetAddress;
 public final class PorscheClusterControls {
     private static final int PORT = 7032;
     private static final int MAX_PENDING = 8;
+    private static final int COMMANDS_PER_STEP = 1;
     private static final long INTERVAL_MS = 50L;
     private static final long TAIL_MS = 250L;
     private static final Object LOCK = new Object();
     private static int pendingDirection, pendingCount;
     private static long lastInputMs, nextSendMs, revision, activeEpoch;
+    private static long lastAutoZoomMs;
+    private static int lastAutoZoomSetting = Integer.MIN_VALUE;
     private static boolean started;
 
     private PorscheClusterControls() { }
@@ -27,7 +30,9 @@ public final class PorscheClusterControls {
         synchronized (LOCK) {
             startLocked();
             int direction = steps > 0 ? 1 : -1;
-            int repeats = Math.abs(steps);
+            int magnitude = Math.abs(steps);
+            int repeats = magnitude > MAX_PENDING / COMMANDS_PER_STEP
+                    ? MAX_PENDING : magnitude * COMMANDS_PER_STEP;
             if (repeats > MAX_PENDING) repeats = MAX_PENDING;
             long now = System.currentTimeMillis();
             if (pendingDirection != 0 && pendingDirection != direction) {
@@ -43,6 +48,32 @@ public final class PorscheClusterControls {
             LOCK.notifyAll();
         }
         return true;
+    }
+
+    /** Re-selecting a Porsche auto-zoom mode recentres the active CarPlay map. */
+    public static boolean consumeMapScaleSetting(int setting) {
+        if (!PorscheCluster.carPlayReady()) return false;
+        synchronized (LOCK) {
+            long now = System.currentTimeMillis();
+            if (setting == lastAutoZoomSetting && now - lastAutoZoomMs < 750L) return true;
+            lastAutoZoomSetting = setting;
+            lastAutoZoomMs = now;
+        }
+        sendControl("show-map");
+        return true;
+    }
+
+    private static void sendControl(String command) {
+        DatagramSocket socket = null;
+        try {
+            byte[] bytes = command.getBytes("US-ASCII");
+            socket = new DatagramSocket();
+            socket.send(new DatagramPacket(bytes, bytes.length,
+                    InetAddress.getByName("127.0.0.1"), PORT));
+        } catch (Throwable ignored) {
+        } finally {
+            if (socket != null) socket.close();
+        }
     }
 
     private static void startLocked() {

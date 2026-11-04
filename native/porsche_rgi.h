@@ -21,7 +21,10 @@ typedef struct {
     uint64_t epoch;
     int active;
     uint32_t distance;
+    uint32_t distance_remaining;
+    uint64_t time_remaining;
     uint8_t bargraph, main_element, direction;
+    uint8_t lane_visibility;
     int8_t z_level;
     cw_rgi_lane lanes[12];
     uint8_t lane_count;
@@ -29,6 +32,7 @@ typedef struct {
     cw_rgi_maneuver maneuvers[64];
     char current_road[97];
     char turn_to[97];
+    char destination[97];
 } cw_rgi_state;
 
 int cw_rgi_consume(cw_rgi_state *state, const uint8_t *message, size_t length);

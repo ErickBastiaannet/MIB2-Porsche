@@ -34,6 +34,13 @@ public final class ControlsFixture {
             check("zoom-out".equals(receive(socket)), "positive MapScale must zoom out");
             check(PorscheClusterControls.consumeMapScale(-1), "owned zoom not consumed");
             check("zoom-in".equals(receive(socket)), "negative MapScale must zoom in");
+            check(PorscheClusterControls.consumeMapScaleSetting(1), "auto zoom not consumed");
+            check("show-map".equals(receive(socket)), "auto zoom must request map recenter");
+            check(PorscheClusterControls.consumeMapScaleSetting(1), "debounced auto zoom not consumed");
+            socket.setSoTimeout(320);
+            try { throw new AssertionError("auto zoom debounce failed: " + receive(socket)); }
+            catch (SocketTimeoutException expected) { }
+            socket.setSoTimeout(700);
 
             // Reversal drops the unsent tail instead of replaying stale zoom-out steps.
             PorscheClusterControls.consumeMapScale(8);
