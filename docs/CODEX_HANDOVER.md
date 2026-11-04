@@ -133,6 +133,21 @@ De wijzigingen omvatten meerdere onderwerpen. Review ze inhoudelijk voordat comm
 
 Open ontwerpbeslissing: voeg afzonderlijke one-shot Online Menu-acties toe voor split-JARs; activeer niet direct de gecombineerde bridge.
 
+### Openstaande fysieke JAR-tests
+
+Geen van onderstaande experimentele HMI-JARs mag direct permanent of gecombineerd worden geactiveerd. Iedere test vereist een afzonderlijke one-shot wrapper, automatische OEM-HMI-terugval op de volgende boot en expliciete bevestiging nadat navigatie normaal is gestart.
+
+| JAR | Functie | Huidige bewijsstatus | Eerstvolgende fysieke test |
+| --- | --- | --- | --- |
+| `PorscheCarPlayZoom.experimental.jar` | Porsche MapScale naar CarPlay-zoom; stock schaal/ACK; autozoom naar `showUI` | Bytecode en fixtures slagen; laatste correcties niet fysiek bevestigd | Als eerste testen: navigatiestart, één stap per klik, richting, zichtbare schaal, reverse queue, autozoom en OEM-fallback |
+| `PorscheCarPlayGuidance.experimental.jar` | RGI naar pijlen, afstand, straattekst, remaining time/distance en lanes | Native/Java-fixtures slagen; geen echte routeproef | Eerst met gecontroleerde state, daarna Apple Maps-route; aankomst en disconnect moeten netjes clearen |
+| `PorscheCarPlayNavIgnore.experimental.jar` | Neutraliseert CarPlay-navigatie-eigendom zonder popup/speech te blokkeren | Statisch/lokaal gecontroleerd; niet afzonderlijk fysiek bewezen | Controleren dat OEM-navigatie niet wordt verdrongen en toegestane CarPlay-meldingen blijven verschijnen |
+| `PorscheCarPlayNotifications.experimental.jar` | Notification/AppState-compatibiliteit voor V14.6 | Gebouwd en als one-shot voorzien; V14.6 niet volledig fysiek bewezen | WhatsApp/Telegram/andere toegestane iOS-melding testen met actieve CarPlay, plus boot en fallback |
+| `PorscheCarPlayDisplay.experimental.jar` | Contextinstallatie, clusterdisplayrouting en CarPlay-displaystatus | Native displaypad is bewezen; Java-displayhook niet geïsoleerd bewezen en heeft de hoogste bootimpact | Als laatste testen: cold boot, contextwissel, reconnect, zwartbeeldfallback en normale OEM-kaart |
+| `PorscheCarPlayBridge.experimental.jar` | Gecombineerde bridge met meerdere hooks | Mag niet als eerste test worden gebruikt; eerdere gecombineerde injectie blokkeerde navigatiestart | Pas testen nadat alle bovenstaande onderdelen afzonderlijk dezelfde boot/reconnect/herstelcriteria hebben doorstaan |
+
+De splitinhoud en actuele hashes staan in `build/split-hmi-manifest.json`. `PorscheCarPlayNotifications.experimental.jar` wordt apart door `build-tools/build.py` gebouwd en staat daarom niet in die splitmanifesttabel.
+
 ## 6. Bekende bugs en risico's
 
 1. Gecombineerde Java-injectie heeft eerder navigatiestart geblokkeerd; de veroorzakende hook is nog niet geïsoleerd.
