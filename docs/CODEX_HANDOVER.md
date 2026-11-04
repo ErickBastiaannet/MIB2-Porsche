@@ -281,6 +281,60 @@ Remove-Item Env:CW_TELNET_PASSWORD
 
 Lees de helper vóór gebruik; stage eerst naar RAM en verifieer hashes voordat iets onder `/mnt/app` wordt vervangen.
 
+### Native payload uitsluitend vanuit RAM testen
+
+**Bevestigd uit de repository.** `unit/carplay_ram_test.sh` is het bestaande niet-installerende native testpad. Het kopieert de gehashte payload vanaf SD naar `/ramdisk/connectwow-carplay-test`, start de originele `dio_manager.cw-stock` met de capture/RGI-preloads, start de supervisor en schrijft de resultaten terug naar SD. Het schrijft niets naar `/mnt/app`.
+
+Bouw de bestaande RAM-testoverlay met:
+
+```powershell
+python build-tools/build_ram_test_zip.py
+```
+
+Pak `build/porsche-carplay-RAM-test-MU1417.zip` uit over de Online Menu-SD-kaart, werk het menu bij en kies `CarPlayRAM > Start CarPlay RAM-test (60 sec)`. Logs komen in `connectwow-carplay-logs/latest/` op de SD-kaart.
+
+Handmatige equivalent op de unit, uitsluitend nadat de payload en `payload.manifest` op SD staan:
+
+```sh
+/bin/ksh /scripts/online/carplay_ram_test.sh
+```
+
+Het exacte scriptpad is afhankelijk van hoe Online Menu de SD-overlay mount/kopieert; gebruik daarom bij voorkeur de menuactie. Controleer vóór de test dat `/mnt/app/eso/bin/apps/dio_manager.cw-stock` bestaat en uitvoerbaar is.
+
+Belangrijke beperking: deze bestaande RAM-test is begrensd op 60 seconden en zet `CW_RGI_ENABLE=0`. Hij is geschikt voor native video/cold-startdiagnostiek, niet voor een volledige duurzame V15- of fysieke RGI-test. Verander dit niet stilzwijgend; bouw voor een langere proef een expliciet nieuw testprofiel met eigen logging en stop/herstelactie.
+
+### Los native artifact via Telnet naar RAM stagen
+
+Voor een klein binair bestand of `.so` kan de helper rechtstreeks naar een RAM-pad sturen, bijvoorbeeld:
+
+```powershell
+$env:CW_TELNET_PASSWORD='kuaRoJgY'
+python build-tools/telnet_push.py build\qnx\libcw-porsche-capture_receiver.so /ramdisk/cw-upload-receiver.so
+Remove-Item Env:CW_TELNET_PASSWORD
+```
+
+De helper verstuurt hex naar `<doel>.hex`; hij decodeert of activeert het bestand niet. Laat een volgende sessie eerst de helper en de actuele unittools controleren en decodeer daarna alleen met de op deze QNX-unit beschikbare, eerder geteste methode. Verifieer altijd SHA-256 met de meegeleverde `cw-window-candidate --hash` vóór gebruik. Vervang geen live preloadlibrary in-place; stage naar een nieuwe naam en start een afzonderlijke proef.
+
+### Java-JARs zijn niet hot-loadbaar vanuit RAM
+
+**Bevestigd uit de launchers.** De HMI-JARs worden via `VMOPTIONS="$VMOPTIONS -Xbootclasspath/p:$JAR"` geladen voordat de OEM `lsd.sh` de Java-VM start. Een JAR naar `/ramdisk` kopiëren injecteert hem dus niet in een reeds draaiende JVM.
+
+Voor een Java-test zijn twee verschillende stappen nodig:
+
+1. De JAR kan eerst naar RAM of een tijdelijke profielmap worden gestaged en gehasht.
+2. Een one-shot HMI-wrapper moet vóór JVM-start `-Xbootclasspath/p:<exact-pad>` instellen en daarna `lsd.sh.cw-stock` uitvoeren.
+
+De bewezen veiligheidsvorm staat in `unit/lsd_controls_watchdog.sh` en `unit/lsd_notifications_watchdog.sh`: `pending` wordt vóór de proef verwijderd, `attempted` wordt gezet, en zonder latere expliciete `confirmed`-marker gebruikt de volgende boot stock-HMI. Voor de open split-JAR-tests moet dit patroon per JAR worden uitgebreid. Gebruik niet de gecombineerde bridge en probeer geen draaiende JVM te patchen.
+
+Een Java one-shottest vereist een RCC/HMI-herstart en kan de navigatiestart blokkeren. Controleer daarom vóór iedere proef:
+
+- geldige `lsd.sh.cw-stock` en hash;
+- een automatische stock-fallback op de volgende boot;
+- logoutput naar SD;
+- een handmatig PuTTY-herstelpad wanneer HMI niet opkomt.
+
+De exacte split-JAR one-shotinstallaties bestaan nog niet als afzonderlijke menuacties; dat is bewust een open vervolgstap, geen ontbrekend commando dat een volgende sessie moet raden.
+
 ### Mount en reboot
 
 Alleen gebruiken als de geplande installatie/herstelactie dat vereist:

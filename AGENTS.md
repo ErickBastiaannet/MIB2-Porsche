@@ -144,6 +144,8 @@ git status --short
 - Start zichtbare tests uitsluitend wanneer de auto stilstaat.
 - Vraag de gebruiker vlak vóór een zichtbare test of die naar het juiste scherm kijkt; start daarna direct en meld het resultaat zonder lange stilte.
 - Telnet en USB-CarPlay kunnen elkaar beïnvloeden. Trek geen conclusies uit één mislukte connectie zonder sessie-/proceslogs.
+- Gebruik voor een volledig native RAM-only veldtest de bestaande `build-tools/build_ram_test_zip.py` en `unit/carplay_ram_test.sh`; deze schrijft niet naar `/mnt/app`, duurt 60 seconden en heeft RGI uitgeschakeld.
+- Behandel Java anders dan native code: een JAR kan niet in een al draaiende HMI-JVM worden hot-loaded. Gebruik een one-shot wrapper met `-Xbootclasspath/p:` vóór `lsd.sh.cw-stock`, automatische stock-fallback en RCC/HMI-herstart. Zie de handover voor de exacte huidige mogelijkheden en beperkingen.
 
 ## Deployment en herstel
 
