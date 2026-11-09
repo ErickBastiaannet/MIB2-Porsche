@@ -1,13 +1,35 @@
 # Actuele Codex-overdracht — Porsche CarPlay-cluster
 
-Laatst bijgewerkt: 4 november 2026
+Laatst bijgewerkt: 9 november 2026
 
 Repository: `D:\Software Development\Github\porsche-carplay`
 
 Basis vóór deze overdrachtscommit: `main` / `765403c`
 Doelfirmware: `MHI2_ER_POG24_K5137_MU1417_971919360T`
 
+## Fysieke V15- en zoombevestiging — 9 november 2026
+
+- **Fysiek bevestigd:** V15 bereikt op de Panamera `CARPLAY_ACTIVE display=1 context=70 size=800x480`; CarPlay-kaartbeeld en één zoomopdracht per encoderstap werken.
+- De cold-startchurn kwam aantoonbaar door een te korte eerste-pixeltermijn: workers eindigden met `CARPLAY_RENDERER_EXIT pixel-timeout` voordat MU1417 het eerste bruikbare frame leverde. Alleen het eerste frame krijgt nu maximaal 15 seconden; na de eerste render blijft de fail-safe 5 seconden.
+- Een live NvSS-configrefresh wordt niet meer destructief gesloten. MU1417 crashte daarbij in `libnvcwm.so` / `NvCwmServerPostMessage`; een echte decodeerfout blijft de geïsoleerde worker laten herstarten.
+- Permanente V15-binary op de unit: SHA-256 `2fbc77417bb6f8d3258aff85418a4dc8e22edc2afe538d0c3a77376af11750a6`. De voorafgaande V15 is bewaard als `cw-window-candidate.pre-pixel-grace`.
+- **Fysiek bevestigd:** de losse zoom-JAR werd via `-Xbootclasspath/p:` geladen en zoomt Apple CarPlay daadwerkelijk. De proef is na bevestiging permanent gemaakt met `/mnt/persist/connectwow-carplay/zoom-probe/confirmed`.
+- Permanente HMI-launcher op de unit: SHA-256 `8aa790f9ad9c48c87db023397f7dc5fb5da71f35c6cebf7513783fc09e5a057d`. De launcher behoudt daarnaast de one-shot `pending` → `attempted`-route voor toekomstige onbevestigde proeven.
+- **Bekende cosmetische beperking:** de teller toont tijdens CarPlay-zoom permanent de laatst geldige Porsche-schaal (waargenomen: 150 m). Dit is niet de werkelijke CarPlay-schaal. De waarde wordt bewust niet via de verborgen OEM-kaartcontext verhoogd, omdat dat eerder `---` en `unavailable` veroorzaakte. Functioneel zoomen werkt wel en de gebruiker heeft deze toestand geaccepteerd.
+- Navigatie, browser, mediaonline en GEMIB draaiden na installatie. `/mnt/app` is na iedere transactie weer read-only gemount.
+
 Lees eerst `../AGENTS.md` voor blijvende architectuur-, code-, build-, test- en veiligheidsregels. Dit document bevat de actuele status, dirty tree, open problemen en vervolgstappen.
+
+## Hervattingscontrole ? 4 november 2026
+
+- Werk uitgevoerd vanuit de voorgeschreven repository op D:. Bij aanvang waren werkboom en index schoon; `git diff` was leeg. Na `git fetch origin` stonden `main` en `origin/main` beide op `d572ce6`.
+- De hieronder beschreven dirty tree is historisch: deze wijzigingen, inclusief de transferhelper, zijn vastgelegd in `234f63d`. De vervolgstap om die wijzigingen veilig te stellen is daarmee uitgevoerd.
+- Verificatie van `d572ce6` gebeurde in een tijdelijke bronkopie; bestaande lokale buildartifacts zijn behouden. Java-build, bytecodecontrole, notification/guidance/cluster/zoom-fixtures en het splitsen van de JARs slaagden.
+- QNX 6.5 ARM EABI5-build en aanvullende native tests met ASan/UBSan slaagden. Windows-CRLF in de tijdelijke shellscripts is v??r uitvoering naar LF omgezet. De native sessietest vereist daarnaast het bestaande gegenereerde `build/geometry.record` als fixture.
+- Volledige Linux-suite na bouwen van host-runtimefixtures: **54 passed in 69.00s**. Aanvankelijk ontbraken pakket- en runtimefixtures in de tijdelijke kopie; dat was geen geslaagde volledige testrun.
+- Het opnieuw gebouwde profielpakket heeft opnieuw SHA-256 `3c3e83229784d633d22514390e07e27e4652e1256d7c1593e1e449a752416afc`. Stable V14 bevat exact de bewezen renderer; Controls V15 bevat exact de opnieuw gebouwde renderer met SHA-256 `a73d7263559dfacca1fdff077ad49eb50aef9642107f48da97afd61f55419891`.
+- Gebruikte Java-inputs staan onder `D:/Software Development/Github/mqb-backend-private/.tmp/porsche-carplay-mu1417/`: `porsche-carplay-selected.jar`, `porsche-display-selected.jar` en `toolchain/zulu17.70.111-ca-jdk17.0.21-win_x64/bin`. De build controleerde de vereiste OEM-classhashes.
+- Er is niets naar de unit of SD gedeployed en er is geen nieuwe fysieke validatie uitgevoerd. Eerstvolgende prioriteit blijft native V15 cold-start met OEM-HMI; de gecombineerde Java-bridge blijft uitgeschakeld.
 
 ## 1. Bewijslabels
 
@@ -407,3 +429,61 @@ Activeer de gecombineerde bridge alleen nadat ieder onderdeel cold-start, reconn
 - De exacte lokale paden naar recovered OEM-JARs en de gebruikte JDK-invocation zijn niet betrouwbaar gedocumenteerd; bepaal die opnieuw voor `build-tools/build.py`.
 - De actuele toestand van unit en SD-kaart is onbekend; bij de laatste controle was de unit niet bereikbaar en was geen SD-volume zichtbaar.
 - De actuele ZIP is lokaal verifieerbaar, maar nog niet aan een commit gekoppeld of fysiek gevalideerd.
+
+## Zoomproef via Telnet ? voorbereiding 4 november 2026
+
+- De gebruiker wil de aangepaste losse zoom-JAR eerst testen en bevestigde dat de auto stilstaat en het scherm kan worden bekeken.
+- Read-only unitcontrole: `lsd.sh` en `lsd.sh.cw-stock` hebben beide de verwachte hash `7ad5a6a08589591c48ca0d492e1793977eb2256ec32474b08306b4f9882fc091`.
+- Er staat al een permanente `lsd/jars/ConnectWowZoom.experimental.jar` met SHA-256 `414b7f653e96ab347e61ba3b56e479202b40e49af8d9702bbc70cd87d4a3512e`. Stock `lsd.sh` voegt JARs uit deze map toe aan BOOTCLASSPATH. Deze oude JAR moet v??r een nieuwe hookproef behouden buiten de autoloadmap worden gezet; niet dubbel laden.
+- Native V15 meldt RUNNING. Er waren geen `/fs/sda0` of `/fs/sdb0` volumes zichtbaar.
+- Nieuw lokaal: `unit/lsd_zoom_oneshot.sh` en `tests/test_zoom_oneshot.py`. De wrapper gebruikt een persistent eenmalig ticket, controleert stock/JAR-hashes, weigert activering zolang de oude JAR aanwezig is en valt bij volgende boot terug naar stock. Gerichte Linux-test: **1 passed**. Nog niet ge?nstalleerd of fysiek getest.
+- Beoogde huidige zoompayload: `build/PorscheCarPlayZoom.experimental.jar`, SHA-256 `8b0ac8b5d883d7835f026756ac1e60b2b4bc4bc7822f051829d89750964cf478`.
+- Overdracht via QNX-ksh octal-print naar nieuwe RAM-bestanden werd afgebroken v??r voltooide hashcontrole. Mogelijk gedeeltelijke bestanden: `/ramdisk/cw-zoom-20261104.jar`, `/ramdisk/cw-zoom-fast-20261104.jar`, `/ramdisk/cw-zoom-final-20261104.jar`. Niet activeren of als geldige payload behandelen.
+- Daarna weigerde Telnet een nieuwe consolesessie met `telnetd: login_tty: Operation not permitted`. Oorzaak niet vastgesteld. Er is geen HMI-starter/JAR op `/mnt/app` gewijzigd en geen herstart uitgevoerd.
+- Volgende stap: Telnet-console herstellen/controleren en overdracht betrouwbaar afronden met doelhashcontrole. Pas daarna de transactionele one-shotinstallatie uitvoeren, de oude JAR bewaren en de zichtbare proef starten. Bestaande `unit/zoom_test.sh` is permanent en biedt geen one-shotterugval.
+
+### Fysieke zoomproef 4 november 2026
+
+- **Fysiek bevestigd:** de one-shot-JAR werd geladen, de HMI startte en de native lease op UDP 7032 bleef actief. De lease-ID verandert bij iedere heartbeat en is dus geen stabiele sessie-ID. Een Java-queue mag een gewijzigde lease-ID niet zelfstandig als rendererwissel behandelen.
+- **Fysiek afgekeurd:** de variant die de volledige stock `CombiBAPListener.setMapScale(int)` liet doorlopen. De schaal begon op circa 1,5 km, maar na draaien veranderden autozoom en afstand naar `unavailable` respectievelijk `---`; CarPlay zoomde niet. Meerdere snelle stappen werkten alleen met de eerdere JAR.
+- De gebruiker vindt de bewuste `unavailable`-weergave geschikt voor overige, werkelijk niet-ondersteunde kaartopties. Gebruik dit mechanisme niet voor autozoom.
+- De unit is daarna teruggezet naar stock `lsd.sh` plus de eerder werkende `ConnectWowZoom.experimental.jar` (SHA-256 `414b7f653e96ab347e61ba3b56e479202b40e49af8d9702bbc70cd87d4a3512e`) en opnieuw gestart.
+- Volgende implementatie: stuur zoom semantisch naar CarPlay, behoud een begrensde geldige Porsche-schaal/ACK en laat autozoom zijn stockstatus behouden. Test eerst één klik per richting, grenzen, autozoom en OEM-fallback.
+
+### Zoom- en cold-startcorrecties na fysieke proef
+
+- **Bevestigd uit unitlogs:** CarPlay werd pas rond 6,5 minuut na RCC-start actief. Vooraf gingen veel `CARPLAY_WORKER_STARTED`, `CARPLAY_DISPLAY_PREFLIGHT_FAILED` en `CARPLAY_RENDERER_FAILED stage=displayables-query` meldingen; daarna verscheen `CARPLAY_ACTIVE display=1 context=70 size=800x480` en werd de ready-lease iedere twee seconden vernieuwd.
+- **Bevestigd uit bronvergelijking:** `harman-f/mhi2_altscreen_carplay` gebruikt voor zoom een begrensde signed backlog en 140 ms minimale afstand tussen semantische opdrachten. `omonob/MHI2-Carplay-Maps` en `chefranov/mhi2-au37x-carplay` houden één supervisor/renderer-eigenaar vast en vermijden ongecontroleerde parallelle overnamepogingen. Deze repos zijn alleen als ontwerpreferentie gebruikt; hun firmwarebinaries zijn niet overgenomen.
+- `PorscheClusterControls` gebruikt nu één opdracht per detent, 140 ms pacing en een begrensde geldigheid van 1000 ms. MU1417-heartbeat-ID's worden niet langer als stabiele sessie-ID behandeld; verse CRC-lease en queuegrens bewaken fallback.
+- De ASM-hook slaat bij actieve CarPlay alleen de native verborgen-map-zoomside-effect over, roept wel Porsche `updateMapScale()` aan en behoudt daarmee de laatst geldige schaal/ACK. `setMapScaleSetting()` loopt volledig stock door; autozoom mag niet `unavailable` worden.
+- De YUV-renderer hergebruikt de onmiddellijk voorafgaande, geserialiseerde supervisor-preflight. De dubbele `gd`-query in het kind is verwijderd; die race veroorzaakte cold-start-workerchurn. Mislukte supervisorpreflight wordt na 250 ms opnieuw gecontroleerd zonder worker te starten.
+- Builds/tests: Java/fixtures slagen, QNX ARM EABI5-build slaagt, volledige suite **55 passed**, aanvullende regressies **4 passed**. Nieuwe zoom-JAR SHA-256: `d5af3d312b94336d49a597182f61b71c15c295ba26e96e3590e2cf7781aad3e1`; nieuwe native kandidaat: `6a93597f62278535a4b5d8906bdaca1db46d86eeec3813461f27124a68595294`.
+- Nieuwe profiel-ZIP: `build/porsche-carplay-profiles-MU1417.zip`, SHA-256 `69f9c5b070291da37ec4fb2e9183f69e4e555d968fda5a7979690c04c3f5efcb`. Stable V14 in dit pakket blijft hash `950107cb...51072`; alleen Controls bevat de nieuwe native kandidaat.
+- Deployment is **niet uitgevoerd**: vlak voor FTP-overdracht verdween `172.16.250.248` volledig van het netwerk (geen ping/Telnet). Er is in die poging niets naar de unit geschreven. Eerst bereikbaarheid herstellen, live hashes opnieuw lezen, dan transactioneel met aparte backups laden en fysiek testen.
+
+### Referentie-audit zoom — 4 november 2026 (vervangt de timingconclusie hierboven)
+
+- **Bevestigd uit primaire referentiecode:** de eerder overgenomen `140 ms` komt uit de experimentele, ACK-gestuurde `alt111_zoom`-state-machine van `harman-f/mhi2_altscreen_carplay`. Die implementatie houdt een stabiele sessie, focus/eigenaar en een expliciete `in_flight`/`complete(accepted)`-cyclus bij. Onze tekstuele UDP-keten op poort 7032 heeft geen ACK-retourpad. Alleen de 140 ms-constante overnemen was daarom geen geldige port.
+- **Bevestigd uit de gepubliceerde MHI2-bediening van `omonob/MHI2-Carplay-Maps`:** `Mhi2ClusterControlBridge` gebruikt een begrensde FIFO van 16 en een enkele daemonworker. Een encoderdetent wordt onmiddellijk als precies één `zoom-in` of `zoom-out` UDP-commando afgevoerd, zonder debounce, 140/250 ms-pacing of verouderingstimer.
+- `PorscheClusterControls` volgt nu die transportstructuur: FIFO 16, één opdracht per Porsche `MapScale`-stap, behoud van volgorde bij snelle omkering, verse native ready-lease vóór acceptatie én vóór verzending, en leegmaken bij verlies van de lease.
+- De onbewezen vertaling van Porsche autozoom naar CarPlay `show-map` is verwijderd. `consumeMapScaleSetting()` retourneert `false`; de ASM-hook laat de volledige OEM-methode altijd doorlopen. Er is in de onderzochte referentiecode geen bewezen universeel CarPlay-autozoomcommando.
+- De Porsche-specifieke `setMapScale`-hook blijft beperkt tot de fysiek gemotiveerde afwijking: tijdens actieve CarPlay wordt alleen de verborgen OEM-kaartincrement overgeslagen, waarna `updateMapScale()` de bestaande Porsche-status/ACK bijwerkt. Buiten CarPlay loopt de stockmethode volledig.
+- Lokale verificatie na deze audit: volledige Linux-suite **58 passed**, OEM-Java-build en alle fixtures geslaagd, split-JARs geslaagd, QNX ARM EABI5-build geslaagd.
+- Actuele zoom-JAR SHA-256: `264f4231e69c1ab24cf036b7e9a518d25374a3a5723b82b31647371c86779a82`.
+- Actuele native kandidaat blijft SHA-256 `6a93597f62278535a4b5d8906bdaca1db46d86eeec3813461f27124a68595294`.
+- Actuele profiel-ZIP SHA-256: `2fe9b08722c4ccd05925a7ede12460ddacf933fa1ff42678546ac45d5df307d4`.
+- Afzonderlijke transactionele one-shot zoomproef: `build/porsche-carplay-zoom-test-MU1417.zip`, SHA-256 `37a51aef493eb127f940d719ec08690c4cec12f7b16afb80d2dddc8e002caa51`.
+- **Nog niet fysiek bevestigd en niet gedeployed:** één detent, snelle serie, omkering, zichtbare schaalfeedback en OEM-autozoom. De nieuwste bestanden mogen pas als werkend worden bestempeld nadat deze afzonderlijk via de one-shotproef zijn bevestigd.
+
+### Gecombineerde Java-one-shot — 6 november 2026
+
+- De gebruiker wil displayrouting, zoom, routegeleiding en notificatiecompatibiliteit als één proef testen. Er wordt geen zelfstandige nav-ignoreproef meer gebouwd.
+- `PorscheCarPlayBridge.experimental.jar` bevat deze combinatie. De notificatiecompatibiliteit gebruikt technisch de bestaande `AppState`-patch: alleen `getAppStateID()` en `getOwner()` worden geneutraliseerd; `getSpeechMode()` en de OEM-popup-/speechroute blijven intact. Dit is onderdeel van notificaties, geen afzonderlijk gebruikersfeature.
+- `install-controls` blijft bewust native V15 met stock-HMI installeren. De nieuwe actie `test-controls-java` vereist eerst een geldige Controls-installatie, maakt een eenmalig `pending`-ticket, activeert transactioneel `lsd-controls.sh` en herstart de RCC.
+- Zonder expliciete bevestiging wordt de JAR na die ene poging niet opnieuw geladen. `confirm-controls` weigert nu bevestiging zolang geen `attempted`-marker bestaat.
+- Het Online Menu bevat afzonderlijk: native Controls installeren, gecombineerde Java-bridge eenmaal testen, en pas daarna bevestigen.
+- `split_hmi_bridge.py` bouwt geen zelfstandig `PorscheCarPlayNavIgnore.experimental.jar` meer. Display, zoom en guidance blijven beschikbaar voor diagnose; de afzonderlijke notificatie-JAR blijft voor V14.6 bestaan.
+- Verificatie: OEM-Java-build en alle fixtures geslaagd, QNX ARM EABI5-build geslaagd, volledige Linux-suite **59 passed**. De uiteindelijke profiel-ZIP bevat alle zeven vereiste OEM/helperklassen, de nieuwe menuactie en de one-shotwrapper.
+- Actuele profiel-ZIP: `build/porsche-carplay-profiles-MU1417.zip`, SHA-256 `ebb7862f105ca44e8e905bacba6ab93b5767855c96a9b52139b620fcdd87545c`.
+- Gecombineerde bridge in dat pakket: SHA-256 `bfffaa8e9a869168cbf9c398dcc42ba8d6c6030b4e3fb048db4d87661a9f522f`.
+- **Niet fysiek bevestigd en niet gedeployed.** Eerst native V15 normaal laten starten; daarna pas de gecombineerde one-shot uitvoeren en boot, navigatie, display, zoom, routegegevens, notificaties en volgende-bootfallback controleren.

@@ -109,10 +109,13 @@ script
    label "CarPlay: bevestig meldingen (V14.6)"
 script
    value sys 1 0x0100 "/scripts/online/carplay_profile_controls.sh"
-   label "CarPlay: test zoom en routepijlen (V15)"
+   label "CarPlay: installeer native Controls V15"
+script
+   value sys 1 0x0100 "/scripts/online/carplay_profile_java.sh"
+   label "CarPlay: test gecombineerde Java-bridge eenmaal"
 script
    value sys 1 0x0100 "/scripts/online/carplay_profile_confirm.sh"
-   label "CarPlay: bevestig werkende Controls V15"
+   label "CarPlay: bevestig gecombineerde Java-bridge"
 script
    value sys 1 0x0100 "/scripts/online/carplay_profile_logs.sh"
    label "CarPlay: kopieer diagnostiek naar SD"
@@ -126,6 +129,7 @@ script
     wrappers = {
         'stable': 'install-stable', 'v145': 'install-v145', 'v146': 'install-v146',
         'confirm_v146': 'confirm-v146', 'controls': 'install-controls',
+        'java': 'test-controls-java',
         'confirm': 'confirm-controls', 'logs': 'collect-logs',
         'status': 'status', 'oem': 'restore-oem',
     }
@@ -138,10 +142,10 @@ Stable V14 is de fysiek bewezen basis voor Apple Kaarten en Google Maps.
 V14.5 blijft native-only en voegt automatische activering vanuit de normale
 CarPlay-stream plus SD-diagnostiek toe. V14.6 voegt uitsluitend
 de minimale AppState-notificatieklasse toe en gebruikt een eenmalige proefboot.
-Controls V15 voegt de native kaartbediening en RGI-routegeleiding toe: zoomen
-wordt semantisch naar de CarPlay-kaart gestuurd en manoeuvre-, rijstrook- en
-straat-/volgende-wegdata worden aan de Porsche-routegeleidingsketen aangeboden. Deze uitgebreidere laag
-is nog niet fysiek bevestigd. Daarom start de gewijzigde HMI precies eenmaal.
+Controls V15 installeert eerst alleen de native kaart- en RGI-keten met de
+originele Porsche-HMI. De aparte Java-proef combineert displayrouting, zoom,
+routegeleiding en achtergrondmeldingen in een JAR. Deze uitgebreidere laag is
+nog niet fysiek bevestigd. Daarom start de gewijzigde HMI precies eenmaal.
 Zonder expliciete bevestiging gebruikt een volgende boot automatisch weer de
 originele Porsche-HMI. Kies na een volledig geslaagde rit pas 'bevestig'.
 

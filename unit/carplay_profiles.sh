@@ -19,6 +19,7 @@ STABLE=$ROOT/v14
 V145=$ROOT/v14-5
 V146=$ROOT/v14-6
 CONTROLS=$ROOT/controls-v15
+CONTROLS_STATE=/mnt/persist/connectwow-carplay/controls-v15
 DIO_STOCK_SHA=9c1ecb4fb2f9f8d23c40be84daada9391019da2436f684a2e88d607093af46e8
 LSD_STOCK_SHA=7ad5a6a08589591c48ca0d492e1793977eb2256ec32474b08306b4f9882fc091
 PAYLOAD=
@@ -230,11 +231,28 @@ install-controls)
     echo "Native V15 actief met OEM HMI. Experimentele Java-controls zijn bewust uitgeschakeld."
     reboot_unit
     ;;
+test-controls-java)
+    [ -s "$CONTROLS/enabled" ] || fail "Installeer eerst Controls V15"
+    [ -s "$CONTROLS/PorscheCarPlayBridge.experimental.jar" ] || fail "Gecombineerde Java-bridge ontbreekt"
+    [ -s "$CONTROLS/lsd-controls.sh" ] || fail "Java one-shotstarter ontbreekt"
+    rw || fail "Appvolume niet schrijfbaar"
+    rm -f "$CONTROLS/confirmed" "$CONTROLS/attempted"
+    mkdir -p "$CONTROLS_STATE" || { ro; fail "Persistente Java-proefstatus kon niet worden gemaakt"; }
+    rm -f "$CONTROLS_STATE/attempted"
+    echo combined > "$CONTROLS_STATE/pending" || { ro; fail "Java-proefticket kon niet worden gemaakt"; }
+    begin_switch || { rm -f "$CONTROLS/pending"; ro; fail "Startbestanden konden niet transactioneel worden geborgd"; }
+    stage_file "$CONTROLS/lsd-controls.sh" "$LSD" || { rollback_switch; rm -f "$CONTROLS_STATE/pending"; ro; fail "Java one-shotstarter kon niet worden geactiveerd"; }
+    finish_switch
+    ro || fail "Appvolume niet read-only"
+    echo "Gecombineerde Java-bridge klaar voor eenmalige proefboot"
+    reboot_unit
+    ;;
 confirm-controls)
     [ -s "$CONTROLS/enabled" ] || fail "Controls V15 niet geinstalleerd"
+    [ -s "$CONTROLS_STATE/attempted" ] || fail "Gecombineerde Java-bridge is nog niet eenmalig getest"
     rw || fail "Appvolume niet schrijfbaar"
     echo confirmed > "$CONTROLS/confirmed" || { ro; fail "Bevestiging mislukt"; }
-    rm -f "$CONTROLS/pending" "$CONTROLS/attempted"
+    rm -f "$CONTROLS/pending" "$CONTROLS/attempted" "$CONTROLS_STATE/pending" "$CONTROLS_STATE/attempted"
     ro || fail "Appvolume niet read-only"
     echo "Controls V15 bevestigd voor volgende boots"
     ;;

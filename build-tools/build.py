@@ -78,7 +78,7 @@ def main():
     output = build / 'PorscheCarPlayBridge.experimental.jar'
     notifications = build / 'PorscheCarPlayNotifications.experimental.jar'
     run('java', *exports, '-cp', build, 'BuildPorscheHooks', combined, classes, output, notifications)
-    run('java', '-cp', str(output) + os.pathsep + str(classes), 'NotificationFixture')
+    run('java', '-cp', str(notifications) + os.pathsep + str(classes), 'NotificationFixture')
     run('java', '-cp', classes, 'de.audi.tghu.navi.app.cluster.RouteGuidanceTextFixture', str(build / 'guidance-fixture.state'))
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'org.connectwow.tests.ClusterFixture', str(build / 'cluster-fixture'))
     run('java', '-cp', str(output) + os.pathsep + str(classes), 'org.connectwow.tests.ControlsFixture', str(build / 'fixture'))
@@ -87,7 +87,7 @@ def main():
         'source_classes_sha256': EXPECTED,
         'artifact_sha256': hashlib.sha256(output.read_bytes()).hexdigest(),
         'notifications_sha256': hashlib.sha256(notifications.read_bytes()).hexdigest(),
-        'artifact_role': 'HMI bridge for alternate display, route guidance and background CarPlay notification compatibility; requires native SD candidate package',
+        'artifact_role': 'HMI bridge for alternate display, zoom and route guidance; requires native SD candidate package. Notification compatibility is a separate probe JAR.',
         'physical_unit_verified': False, 'unit_modified': False,
     }, indent=2) + '\n', encoding='utf-8')
 

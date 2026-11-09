@@ -24,9 +24,6 @@ OUTPUTS = {
         "de/audi/tghu/navi/app/cluster/ClusterService.class",
         "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance.class",
     },
-    "PorscheCarPlayNavIgnore.experimental.jar": {
-        "org/dsi/ifc/carplay/AppState.class",
-    },
 }
 
 

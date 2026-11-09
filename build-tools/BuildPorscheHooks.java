@@ -77,22 +77,27 @@ public final class BuildPorscheHooks {
                             switchHooks++;
                         }
                         if (scale) {
-                            // Forward the signed BAP step to CarPlay, but keep the
-                            // complete stock K5137 method. Its activeContext.increment
-                            // updates the Porsche scale model and its final
-                            // updateMapScale() supplies the mandatory SetGet ACK.
+                            // Route only the native map side effect to CarPlay. Keep
+                            // Porsche's last valid scale and send its mandatory ACK;
+                            // incrementing the hidden CarPlay context makes MU1417
+                            // report "---" and auto zoom as unavailable.
+                            Label stock = new Label();
                             super.visitVarInsn(Opcodes.ILOAD, 1);
                             super.visitMethodInsn(Opcodes.INVOKESTATIC, CONTROLS, "consumeMapScale", "(I)Z", false);
-                            super.visitInsn(Opcodes.POP);
+                            super.visitJumpInsn(Opcodes.IFEQ, stock);
+                            super.visitVarInsn(Opcodes.ALOAD, 0);
+                            super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, COMBI, "updateMapScale", "()V", false);
+                            super.visitInsn(Opcodes.RETURN);
+                            super.visitLabel(stock);
                             scaleHooks++;
                         }
                         if (scaleSetting) {
-                            Label stock = new Label();
+                            // Observe only. No public reference proves a universal
+                            // CarPlay auto-zoom command, so the complete OEM method
+                            // always remains authoritative.
                             super.visitVarInsn(Opcodes.ILOAD, 1);
                             super.visitMethodInsn(Opcodes.INVOKESTATIC, CONTROLS, "consumeMapScaleSetting", "(I)Z", false);
-                            super.visitJumpInsn(Opcodes.IFEQ, stock);
-                            super.visitInsn(Opcodes.RETURN);
-                            super.visitLabel(stock);
+                            super.visitInsn(Opcodes.POP);
                             scaleSettingHooks++;
                         }
                     }
@@ -208,12 +213,16 @@ public final class BuildPorscheHooks {
         byte[] notificationClass = null;
         try (JarFile original = new JarFile(args[0]); JarOutputStream out = new JarOutputStream(Files.newOutputStream(Path.of(args[2])))) {
             checkApi(original);
-            for (String name : new String[]{LAYOUT, CLUSTER, CARPLAY, DISPLAY, COMBI, APPSTATE}) {
+            // Keep the global AppState replacement out of the main bridge.
+            // AppState is shared by every HMI application; preloading the
+            // notification compatibility patch here can prevent unrelated
+            // OSGi bundles from starting. It is emitted only in the separate
+            // notification probe JAR below.
+            for (String name : new String[]{LAYOUT, CLUSTER, CARPLAY, DISPLAY, COMBI}) {
                 JarEntry entry = original.getJarEntry(name + ".class");
                 if (entry == null) throw new IllegalStateException("Missing exact Porsche class: " + name);
                 byte[] source = original.getInputStream(entry).readAllBytes();
-                byte[] result = name.equals(APPSTATE) ? neutralizeNavigationOwnership(source) : patch(source, name);
-                if (name.equals(APPSTATE)) notificationClass = result;
+                byte[] result = patch(source, name);
                 add(out, name + ".class", result);
             }
             try (var stream = Files.walk(classes.resolve("org/connectwow/carplay"))) {
@@ -223,7 +232,11 @@ public final class BuildPorscheHooks {
             add(out, GUIDANCE + ".class", legacy(Files.readAllBytes(classes.resolve(GUIDANCE + ".class"))));
         }
         if (args.length >= 4) {
-            if (notificationClass == null) throw new IllegalStateException("Notification class was not built");
+            try (JarFile original = new JarFile(args[0])) {
+                JarEntry entry = original.getJarEntry(APPSTATE + ".class");
+                if (entry == null) throw new IllegalStateException("Missing exact Porsche class: " + APPSTATE);
+                notificationClass = neutralizeNavigationOwnership(original.getInputStream(entry).readAllBytes());
+            }
             try (JarOutputStream notifications = new JarOutputStream(Files.newOutputStream(Path.of(args[3])))) {
                 add(notifications, APPSTATE + ".class", notificationClass);
             }

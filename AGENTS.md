@@ -46,7 +46,7 @@ Runtimeafhankelijkheden:
 - `java/de/audi/tghu/navi/app/cluster/PorscheRouteGuidance.java`: guidance-state naar bestaande Porsche-BAP-methodes.
 - `build-tools/BuildPorscheHooks.java`: ASM-hooks in exact geverifieerde OEM-klassen.
 - `build-tools/build.py`: Java-build en fixtures.
-- `build-tools/split_hmi_bridge.py`: onafhankelijke display-, zoom-, guidance- en nav-ignore-JARs.
+- `build-tools/split_hmi_bridge.py`: onafhankelijke display-, zoom- en guidance-JARs; de AppState-wijziging hoort uitsluitend bij de notificatiecompatibiliteit.
 - `build-tools/prepare_native.py`, `build_qnx.sh`: firmwaregebonden native generatie en crossbuild.
 - `unit/carplay_profiles.sh`: gehashte transactionele installatie, rollback en herstel.
 - `unit/dio_manager_controls.sh`: Controls-runtime.

@@ -33,7 +33,7 @@ def test_profile_package_is_layered_and_qnx_safe():
         assert 'online/carplay-profiles/controls/cw-rgi.so' in names
         for wrapper in (
             'stable', 'v145', 'v146', 'confirm_v146', 'controls',
-            'confirm', 'logs', 'status', 'oem',
+            'java', 'confirm', 'logs', 'status', 'oem',
         ):
             body = archive.read(f'install/scripts/carplay_profile_{wrapper}.sh').decode()
             assert '"$BASE/cwpm.sh"' in body
@@ -64,3 +64,15 @@ def test_v15_has_same_sd_diagnostics():
         assert 'connectwow-carplay-logs/v15' in hmi
         assert 'CarPlay: kopieer diagnostiek naar SD' in archive.read(
             'install/esd/OnlineMenu.esd').decode()
+
+
+def test_combined_java_bridge_is_explicit_one_shot():
+    with zipfile.ZipFile(PACKAGE) as archive:
+        manager = archive.read('install/scripts/cwpm.sh').decode()
+        menu = archive.read('install/esd/OnlineMenu.esd').decode()
+        assert 'test-controls-java)' in manager
+        assert 'echo combined > "$CONTROLS_STATE/pending"' in manager
+        assert 'stage_file "$CONTROLS/lsd-controls.sh" "$LSD"' in manager
+        assert '[ -s "$CONTROLS_STATE/attempted" ] || fail' in manager
+        assert 'test gecombineerde Java-bridge eenmaal' in menu
+        assert 'bevestig gecombineerde Java-bridge' in menu

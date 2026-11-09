@@ -32,24 +32,20 @@ public final class ControlsFixture {
             check(PorscheCluster.carPlayEpoch() == 41, "native renderer lease not accepted");
             check(PorscheClusterControls.consumeMapScale(1), "leased zoom not consumed");
             check("zoom-out".equals(receive(socket)), "positive MapScale must zoom out");
+            // MU1417 renews the first lease value on every heartbeat. It is a
+            // freshness token, not a stable renderer-session identifier.
+            lease(42);
             check(PorscheClusterControls.consumeMapScale(-1), "owned zoom not consumed");
-            check("zoom-in".equals(receive(socket)), "negative MapScale must zoom in");
-            check(PorscheClusterControls.consumeMapScaleSetting(1), "auto zoom not consumed");
-            check("show-map".equals(receive(socket)), "auto zoom must request map recenter");
-            check(PorscheClusterControls.consumeMapScaleSetting(1), "debounced auto zoom not consumed");
-            socket.setSoTimeout(320);
-            try { throw new AssertionError("auto zoom debounce failed: " + receive(socket)); }
-            catch (SocketTimeoutException expected) { }
-            socket.setSoTimeout(700);
+            check("zoom-in".equals(receive(socket)), "heartbeat renewal dropped negative MapScale");
+            check(!PorscheClusterControls.consumeMapScaleSetting(1),
+                    "unproven CarPlay auto zoom must remain OEM");
 
-            // Reversal drops the unsent tail instead of replaying stale zoom-out steps.
-            PorscheClusterControls.consumeMapScale(8);
-            check("zoom-out".equals(receive(socket)), "first burst step missing");
+            // Preserve every detent in FIFO order, including a quick reversal.
+            PorscheClusterControls.consumeMapScale(2);
             PorscheClusterControls.consumeMapScale(-1);
-            check("zoom-in".equals(receive(socket)), "reversal was not prioritized");
-            socket.setSoTimeout(320);
-            try { throw new AssertionError("stale burst survived reversal: " + receive(socket)); }
-            catch (SocketTimeoutException expected) { }
+            check("zoom-out".equals(receive(socket)), "first burst step missing");
+            check("zoom-out".equals(receive(socket)), "second burst step missing");
+            check("zoom-in".equals(receive(socket)), "reverse detent order changed");
 
             // No renderer lease means no phone-map command.
             ready.delete(); socket.setSoTimeout(320);
@@ -57,6 +53,6 @@ public final class ControlsFixture {
             try { throw new AssertionError("zoom escaped during OEM fallback: " + receive(socket)); }
             catch (SocketTimeoutException expected) { }
         } finally { socket.close(); ready.delete(); }
-        System.out.println("PORSCHE_ZOOM_PASS signed meters-scale steps, reversal, pacing, fallback guard");
+        System.out.println("PORSCHE_ZOOM_PASS signed meters-scale steps, FIFO reversal, fallback guard");
     }
 }

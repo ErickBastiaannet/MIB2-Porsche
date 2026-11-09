@@ -241,7 +241,7 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
     request_idr();
     while (!stopped && getppid() == parent) {
         uint32_t available;
-        cw_geometry current;
+        cw_geometry current = {0};
         if (!cw_geometry_read(GEOMETRY, now_seconds(), &current) || !current.active ||
             current.width != geometry->width || current.height != geometry->height)
             break;
@@ -293,6 +293,20 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
             last_data = cw_monotonic_ms();
             if (type == ALT_FRAME_TYPE_CONFIG) {
                 if (config_size != size || memcmp(config, message, size)) {
+                    /* MU1417 periodically republishes an updated AVCC block
+                     * while the 800x480 stream is already decoding. Closing
+                     * that live NvSS instance enters libnvcwm's asynchronous
+                     * KD teardown and can crash in NvCwmServerPostMessage.
+                     * Keep the working decoder for an in-session refresh; a
+                     * real incompatibility is still detected by cw_nvss_frame
+                     * below and causes the isolated worker to be restarted. */
+                    if (sink.handle) {
+                        fputs("CARPLAY_CONFIG_REFRESH_IGNORED active-decoder\n", stderr);
+                        memcpy(config, message, size);
+                        config_size = size;
+                        sequence = next_sequence(sequence);
+                        continue;
+                    }
                     cw_nvss_stop(&sink);
                     unlink(VIDEO_READY);
 #ifdef CW_YUV_RENDERER
@@ -412,22 +426,17 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
     uint32_t sequence = 0;
     uint64_t last_pixels = cw_monotonic_ms();
     pid_t decoder = -1, renderer_pid = getpid();
-    char report[16384];
-    int result = 1;
+    int have_pixels = 0, result = 1;
     memset(&window, 0, sizeof(window));
     memset(&windows, 0, sizeof(windows));
     if (original != 72) {
         fprintf(stderr, "CARPLAY_RENDERER_FAILED stage=original-context value=%u\n", original);
         goto done;
     }
-    if (!cw_dm_query(root, "gd", report, sizeof(report))) {
-        fputs("CARPLAY_RENDERER_FAILED stage=displayables-query\n", stderr);
-        goto done;
-    }
-    if (!cw_dm_layer(report, 79, geometry->width, geometry->height, 0)) {
-        fputs("CARPLAY_RENDERER_FAILED stage=hidden-layer-conflict\n", stderr);
-        goto done;
-    }
+    /* The single supervisor has just completed the exact gd/layer preflight
+     * immediately before this fork. Repeating dmdt here raced DisplayManager
+     * during cold boot and created minutes of throw-away workers. Window
+     * creation below remains the authoritative acquisition and fails closed. */
     if (!cw_pixels_open(&channel, geometry->width, geometry->height)) {
         fputs("CARPLAY_RENDERER_FAILED stage=pixel-channel\n", stderr);
         goto done;
@@ -465,12 +474,20 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
         cw_geometry current;
         int status;
         if (waitpid(decoder, &status, WNOHANG) == decoder) {
+            if (WIFSIGNALED(status))
+                fprintf(stderr, "CARPLAY_DECODER_EXIT signal=%d\n", WTERMSIG(status));
+            else
+                fprintf(stderr, "CARPLAY_DECODER_EXIT status=%d\n",
+                        WIFEXITED(status) ? WEXITSTATUS(status) : -1);
             decoder = -1;
             break;
         }
         if (!cw_geometry_read(GEOMETRY, now_seconds(), &current) || !current.active ||
-            current.width != geometry->width || current.height != geometry->height)
+            current.width != geometry->width || current.height != geometry->height) {
+            fprintf(stderr, "CARPLAY_RENDERER_EXIT geometry active=%u size=%ux%u expected=%ux%u\n",
+                    current.active, current.width, current.height, geometry->width, geometry->height);
             break;
+        }
         if (cw_pixels_read(&channel, image, bytes, &sequence)) {
             uint32_t lease[] = {sequence, now_seconds(), geometry->width, geometry->height};
             if (cw_i420_has_picture(image, bytes, geometry->width, geometry->height)) {
@@ -478,6 +495,7 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
                     !cw_wire_write(VIDEO_READY, "CWRD1", lease, 4))
                     goto done;
                 last_pixels = cw_monotonic_ms();
+                have_pixels = 1;
             } else {
                 /* Do not make context 70 eligible for a blank Google Maps
                  * stream. An earlier useful lease expires and the supervisor
@@ -487,8 +505,14 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
                     goto done;
             }
         }
-        if (cw_monotonic_ms() - last_pixels > 5000)
+        /* The MU1417 decoder can need several seconds after a fresh USB/
+         * CarPlay session before its first useful surface is available. Give
+         * only that first frame extra grace; once rendering has started, keep
+         * the five-second fail-safe that restores the OEM map promptly. */
+        if (cw_monotonic_ms() - last_pixels > (have_pixels ? 5000U : 15000U)) {
+            fputs("CARPLAY_RENDERER_EXIT pixel-timeout\n", stderr);
             break;
+        }
         pause_ms(5);
     }
     result = 0;
@@ -635,6 +659,11 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
         if (child > 0) {
             int status;
             if (waitpid(child, &status, WNOHANG) == child) {
+                if (WIFSIGNALED(status))
+                    fprintf(stderr, "CARPLAY_WORKER_EXIT signal=%d\n", WTERMSIG(status));
+                else
+                    fprintf(stderr, "CARPLAY_WORKER_EXIT status=%d\n",
+                            WIFEXITED(status) ? WEXITSTATUS(status) : -1);
                 child = -1;
                 unlink(READY);
                 restore_context(root, original);
@@ -690,7 +719,10 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
                 }
             } else {
                 fputs("CARPLAY_DISPLAY_PREFLIGHT_FAILED\n", stderr);
-                retry_at = cw_monotonic_ms() + 2000;
+                /* dmdt is synchronous and serialized by this supervisor. Poll
+                 * the transient cold-boot gap promptly without spawning a
+                 * worker until the complete preflight succeeds. */
+                retry_at = cw_monotonic_ms() + 250;
             }
         }
         now = now_seconds();

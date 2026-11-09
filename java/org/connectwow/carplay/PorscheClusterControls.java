@@ -7,15 +7,13 @@ import java.net.InetAddress;
 /** Forwards Porsche cluster map-scale steps to the active CarPlay map. */
 public final class PorscheClusterControls {
     private static final int PORT = 7032;
-    private static final int MAX_PENDING = 8;
-    private static final int COMMANDS_PER_STEP = 1;
-    private static final long INTERVAL_MS = 50L;
-    private static final long TAIL_MS = 250L;
+    /* Match the public MHI2 CarPlayClusterControls transport: a bounded FIFO
+     * drained by one daemon thread, without an invented debounce or pacing
+     * layer. One Porsche MapScale detent produces exactly one command. */
+    private static final int QUEUE_SIZE = 16;
+    private static final int[] QUEUE = new int[QUEUE_SIZE];
     private static final Object LOCK = new Object();
-    private static int pendingDirection, pendingCount;
-    private static long lastInputMs, nextSendMs, revision, activeEpoch;
-    private static long lastAutoZoomMs;
-    private static int lastAutoZoomSetting = Integer.MIN_VALUE;
+    private static int queueHead, queueTail, queueCount;
     private static boolean started;
 
     private PorscheClusterControls() { }
@@ -31,49 +29,16 @@ public final class PorscheClusterControls {
             startLocked();
             int direction = steps > 0 ? 1 : -1;
             int magnitude = Math.abs(steps);
-            int repeats = magnitude > MAX_PENDING / COMMANDS_PER_STEP
-                    ? MAX_PENDING : magnitude * COMMANDS_PER_STEP;
-            if (repeats > MAX_PENDING) repeats = MAX_PENDING;
-            long now = System.currentTimeMillis();
-            if (pendingDirection != 0 && pendingDirection != direction) {
-                // A reversal supersedes unsent intent and is immediately eligible.
-                pendingCount = 0;
-                nextSendMs = now;
-                ++revision;
-            }
-            pendingDirection = direction;
-            pendingCount += repeats;
-            if (pendingCount > MAX_PENDING) pendingCount = MAX_PENDING;
-            lastInputMs = now;
+            if (magnitude > QUEUE_SIZE) magnitude = QUEUE_SIZE;
+            for (int i = 0; i < magnitude; ++i) enqueueLocked(direction);
             LOCK.notifyAll();
         }
         return true;
     }
 
-    /** Re-selecting a Porsche auto-zoom mode recentres the active CarPlay map. */
+    /** No public reference proves a CarPlay auto-zoom command; keep this OEM. */
     public static boolean consumeMapScaleSetting(int setting) {
-        if (!PorscheCluster.carPlayReady()) return false;
-        synchronized (LOCK) {
-            long now = System.currentTimeMillis();
-            if (setting == lastAutoZoomSetting && now - lastAutoZoomMs < 750L) return true;
-            lastAutoZoomSetting = setting;
-            lastAutoZoomMs = now;
-        }
-        sendControl("show-map");
-        return true;
-    }
-
-    private static void sendControl(String command) {
-        DatagramSocket socket = null;
-        try {
-            byte[] bytes = command.getBytes("US-ASCII");
-            socket = new DatagramSocket();
-            socket.send(new DatagramPacket(bytes, bytes.length,
-                    InetAddress.getByName("127.0.0.1"), PORT));
-        } catch (Throwable ignored) {
-        } finally {
-            if (socket != null) socket.close();
-        }
+        return false;
     }
 
     private static void startLocked() {
@@ -86,11 +51,25 @@ public final class PorscheClusterControls {
         worker.start();
     }
 
+    private static void enqueueLocked(int direction) {
+        if (queueCount == QUEUE_SIZE) {
+            queueHead = (queueHead + 1) % QUEUE_SIZE;
+            --queueCount;
+        }
+        QUEUE[queueTail] = direction;
+        queueTail = (queueTail + 1) % QUEUE_SIZE;
+        ++queueCount;
+    }
+
+    private static int dequeueLocked() {
+        int direction = QUEUE[queueHead];
+        queueHead = (queueHead + 1) % QUEUE_SIZE;
+        --queueCount;
+        return direction;
+    }
+
     private static void clearLocked() {
-        pendingDirection = 0;
-        pendingCount = 0;
-        lastInputMs = 0;
-        ++revision;
+        queueHead = queueTail = queueCount = 0;
     }
 
     private static void runCommands() {
@@ -98,45 +77,16 @@ public final class PorscheClusterControls {
         InetAddress loopback = null;
         for (;;) {
             int direction;
-            long selectedRevision, selectedInput;
             synchronized (LOCK) {
-                while (pendingCount == 0) {
+                while (queueCount == 0) {
                     try { LOCK.wait(); } catch (InterruptedException ignored) { }
                 }
-                long now = System.currentTimeMillis();
-                if (now - lastInputMs > TAIL_MS) {
-                    clearLocked();
-                    continue;
-                }
-                long delay = nextSendMs - now;
-                if (delay > 0) {
-                    try { LOCK.wait(delay); } catch (InterruptedException ignored) { }
-                    continue;
-                }
-                direction = pendingDirection;
-                selectedRevision = revision;
-                selectedInput = lastInputMs;
+                direction = dequeueLocked();
             }
             try {
-                // Never replay input across an OEM fallback or a renderer generation change.
-                long epoch = PorscheCluster.carPlayEpoch();
-                synchronized (LOCK) {
-                    if (epoch <= 0) {
-                        activeEpoch = 0;
-                        clearLocked();
-                        continue;
-                    }
-                    if (activeEpoch == 0) activeEpoch = epoch;
-                    else if (activeEpoch != epoch) {
-                        activeEpoch = epoch;
-                        clearLocked();
-                        continue;
-                    }
-                    long now = System.currentTimeMillis();
-                    if (selectedRevision != revision || direction != pendingDirection
-                            || selectedInput != lastInputMs || now - selectedInput > TAIL_MS) continue;
-                    --pendingCount;
-                    if (pendingCount == 0) pendingDirection = 0;
+                if (!PorscheCluster.carPlayReady()) {
+                    synchronized (LOCK) { clearLocked(); }
+                    continue;
                 }
                 String command = direction > 0 ? "zoom-out" : "zoom-in";
                 byte[] bytes = command.getBytes("US-ASCII");
@@ -147,8 +97,6 @@ public final class PorscheClusterControls {
                 if (socket != null) socket.close();
                 socket = null;
                 loopback = null;
-            } finally {
-                synchronized (LOCK) { nextSendMs = System.currentTimeMillis() + INTERVAL_MS; }
             }
         }
     }
