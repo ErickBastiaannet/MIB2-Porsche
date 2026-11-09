@@ -229,7 +229,18 @@ public final class BuildPorscheHooks {
                 for (Path file : stream.filter(p -> p.toString().endsWith(".class")).sorted().toList())
                     add(out, classes.relativize(file).toString().replace('\\', '/'), legacy(Files.readAllBytes(file)));
             }
-            add(out, GUIDANCE + ".class", legacy(Files.readAllBytes(classes.resolve(GUIDANCE + ".class"))));
+            Path guidanceDirectory = classes.resolve("de/audi/tghu/navi/app/cluster");
+            try (var stream = Files.list(guidanceDirectory)) {
+                List<Path> guidanceClasses = stream
+                    .filter(p -> p.getFileName().toString().startsWith("PorscheRouteGuidance") &&
+                                 p.getFileName().toString().endsWith(".class"))
+                    .sorted().toList();
+                if (guidanceClasses.size() != 3)
+                    throw new IllegalStateException("Unexpected PorscheRouteGuidance class set: " + guidanceClasses);
+                for (Path file : guidanceClasses)
+                    add(out, classes.relativize(file).toString().replace('\\', '/'),
+                        legacy(Files.readAllBytes(file)));
+            }
         }
         if (args.length >= 4) {
             try (JarFile original = new JarFile(args[0])) {

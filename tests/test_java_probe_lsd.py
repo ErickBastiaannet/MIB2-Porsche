@@ -29,3 +29,18 @@ def test_probe_builder_rejects_unknown_stock(tmp_path):
     source.write_text("not OEM")
     with pytest.raises(SystemExit):
         module.build(source, tmp_path / "out", "/x", "/y")
+
+
+def test_probe_builder_adds_one_shot_extra_probe_without_confirming_it(tmp_path):
+    module = load_probe_builder()
+    source = tmp_path / "lsd.sh"
+    source.write_bytes(module.fixture_oem())
+    module.OEM_SHA256 = hashlib.sha256(source.read_bytes()).hexdigest()
+    target = tmp_path / "probe.sh"
+    module.build(source, target, "/probe/zoom.jar", "/persist/zoom",
+                 "/probe/guidance.jar", "/persist/guidance")
+    text = target.read_text("ascii")
+    assert 'CW_EXTRA_PROBE_JAR="/probe/guidance.jar"' in text
+    assert 'mv "$CW_EXTRA_PROBE_STATE/pending" "$CW_EXTRA_PROBE_STATE/attempted"' in text
+    assert '[ -s "$CW_EXTRA_PROBE_STATE/confirmed" ]' in text
+    assert 'CW_EXTRA_PROBE_ENABLE=1' in text

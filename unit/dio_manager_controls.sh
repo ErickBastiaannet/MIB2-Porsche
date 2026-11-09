@@ -12,7 +12,7 @@ done
 
 if [ ! -s "$CW_PERSIST/enabled" ] || [ ! -s "$CW_PERSIST/installed.manifest" ] ||
    [ ! -x "$CW_PERSIST/cw-window-candidate" ] ||
-   [ ! -s "$CW_PERSIST/cw-receiver-controls.so" ] || [ ! -s "$CW_PERSIST/cw-rgi.so" ] ||
+   [ ! -s "$CW_PERSIST/cw-receiver-controls.so" ] ||
    [ ! -s "$CW_PERSIST/libcw-query-stdio.so" ]; then
     exec "$CW_STOCK" "$@"
 fi
@@ -26,7 +26,6 @@ mkdir -p "$CW_ROOT" "$CW_LOG_ROOT" || exec "$CW_STOCK" "$@"
 echo enabled > "$CW_ROOT/enabled" || exec "$CW_STOCK" "$@"
 cp "$CW_PERSIST/cw-window-candidate" "$CW_ROOT/cw-window-candidate" || exec "$CW_STOCK" "$@"
 cp "$CW_PERSIST/cw-receiver-controls.so" "$CW_ROOT/cw-receiver-controls.so" || exec "$CW_STOCK" "$@"
-cp "$CW_PERSIST/cw-rgi.so" "$CW_ROOT/cw-rgi.so" || exec "$CW_STOCK" "$@"
 cp "$CW_PERSIST/libcw-query-stdio.so" "$CW_ROOT/libcw-query-stdio.so" || exec "$CW_STOCK" "$@"
 chmod 755 "$CW_ROOT/cw-window-candidate" || exec "$CW_STOCK" "$@"
 rm -f "$CW_ROOT/cw-carplay-live-v14.log" "$CW_ROOT/cw-airplay-live-v14.log" "$CW_ROOT/cw-porsche-prime.log"
@@ -34,55 +33,14 @@ echo "START profile=15 launcher=$$" > "$CW_LOG_ROOT/session.status"
 [ -z "$CW_SD_LOG" ] || cp "$CW_LOG_ROOT/session.status" "$CW_SD_LOG/session.status"
 echo "DYNAMIC_PREFLIGHT enabled" > "$CW_ROOT/cw-porsche-prime.log"
 
-(
-    CARPLAY_ALTSCREEN_ENABLE=1
-    CARPLAY_ALTSCREEN_LOG=$CW_ROOT/cw-airplay-live-v14.log
-    CARPLAY_ALTSCREEN_CAPTURE_DIR=/ramdisk/cw-no-raw-capture
-    CW_AUTO_ALT_WAKE=1
-    CW_RGI_ENABLE=1
-    LD_PRELOAD="$CW_ROOT/cw-rgi.so:$CW_ROOT/cw-receiver-controls.so${LD_PRELOAD:+:$LD_PRELOAD}"
-    export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR CW_AUTO_ALT_WAKE CW_RGI_ENABLE LD_PRELOAD
-    exec "$CW_STOCK" "$@"
-) &
-CW_CHILD=$!
-(
-    unset LD_PRELOAD
-    LD_LIBRARY_PATH=/mnt/app/armle/lib:/mnt/app/armle/usr/lib:/mnt/app/root/lib-target:/eso/lib:/armle/lib:/armle/lib/dll:/armle/usr/lib
-    export LD_LIBRARY_PATH
-    # The native supervisor performs the complete dynamic preflight itself:
-    # display discovery, fresh stream ownership, decoded-picture validation and
-    # safe OEM fallback. Starting it immediately avoids missing an already
-    # active CarPlay session during a cold PCM boot.
-    exec "$CW_ROOT/cw-window-candidate" --run "$CW_ROOT" "$CW_CHILD"
-) >>"$CW_ROOT/cw-carplay-live-v14.log" 2>&1 &
-CW_SUPERVISOR=$!
-echo $$ > "$CW_ROOT/cw-launcher.pid"
-echo "$CW_CHILD" > "$CW_ROOT/cw-dio-child.pid"
-echo "$CW_SUPERVISOR" > "$CW_ROOT/cw-supervisor.pid"
-echo "RUNNING child=$CW_CHILD supervisor=$CW_SUPERVISOR" >> "$CW_LOG_ROOT/session.status"
-[ -z "$CW_SD_LOG" ] || cp "$CW_LOG_ROOT/session.status" "$CW_SD_LOG/session.status"
-
-CW_CLOSING=0
-# K5137 propagates both HUP and TERM while tearing down a USB/CarPlay
-# session. Neither identifies a PCM shutdown reliably, so keep the wrapper
-# restartable; the system supervisor terminates it during a real shutdown.
-trap 'kill -TERM "$CW_CHILD" "$CW_SUPERVISOR" 2>/dev/null' HUP INT TERM
-wait "$CW_CHILD"
-CW_RESULT=$?
-kill -TERM "$CW_SUPERVISOR" 2>/dev/null
-wait "$CW_SUPERVISOR" 2>/dev/null
-echo "STOP result=$CW_RESULT closing=$CW_CLOSING" >> "$CW_LOG_ROOT/session.status"
-tail -200 "$CW_ROOT/cw-carplay-live-v14.log" > "$CW_LOG_ROOT/renderer.log" 2>/dev/null
-grep 'event=' "$CW_ROOT/cw-airplay-live-v14.log" | tail -200 > "$CW_LOG_ROOT/capture.log" 2>/dev/null
-cp "$CW_ROOT/cw-porsche-prime.log" "$CW_LOG_ROOT/geometry.log" 2>/dev/null
-[ -z "$CW_SD_LOG" ] || {
-    cp "$CW_LOG_ROOT/session.status" "$CW_SD_LOG/session.status"
-    cp "$CW_LOG_ROOT/renderer.log" "$CW_SD_LOG/renderer.log" 2>/dev/null
-    cp "$CW_LOG_ROOT/capture.log" "$CW_SD_LOG/capture.log" 2>/dev/null
-    cp "$CW_LOG_ROOT/geometry.log" "$CW_SD_LOG/geometry.log" 2>/dev/null
-}
-rm -f "$CW_ROOT/cw-launcher.pid" "$CW_ROOT/cw-dio-child.pid" "$CW_ROOT/cw-supervisor.pid"
-# The OEM DIO process exits on every phone-session disconnect. Always restart
-# the wrapper so the next USB connection is intercepted without a PCM reboot.
-sleep 1
-exec "$CW_PERSIST/launcher.sh" "$@"
+# Bind lifetime to the actual OEM receiver. The receiver constructor starts
+# the video supervisor; no shell parent survives with a stale child PID.
+CARPLAY_ALTSCREEN_ENABLE=1
+CARPLAY_ALTSCREEN_LOG=$CW_ROOT/cw-airplay-live-v14.log
+CARPLAY_ALTSCREEN_CAPTURE_DIR=/ramdisk/cw-no-raw-capture
+CW_AUTO_ALT_WAKE=1
+CW_PROCESS_SUPERVISOR=1
+LD_PRELOAD="$CW_ROOT/cw-receiver-controls.so${LD_PRELOAD:+:$LD_PRELOAD}"
+export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR
+export CW_AUTO_ALT_WAKE CW_PROCESS_SUPERVISOR LD_PRELOAD
+exec "$CW_STOCK" "$@"

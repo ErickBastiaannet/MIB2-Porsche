@@ -22,6 +22,8 @@ OUTPUTS = {
     },
     "PorscheCarPlayGuidance.experimental.jar": {
         "de/audi/tghu/navi/app/cluster/ClusterService.class",
+        "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$1.class",
+        "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$State.class",
         "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance.class",
     },
 }

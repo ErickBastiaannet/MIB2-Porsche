@@ -25,9 +25,14 @@ unsigned cw_session_update(cw_session *s, const cw_geometry *g, uint32_t now, ui
         (s->phone_session != phone || cw_geometry_session(&s->negotiated, g) != 1))
         actions |= cw_session_stop(s);
     if (s->phase != CW_OEM) {
-        uint32_t last = s->phase == CW_WAIT_VIDEO ? s->started_at : s->last_frame_at;
-        if (now < last || now - last > 5) {
-            /* Restore on a stalled writer/decoder; a later update may retry. */
+        /* While waiting for the first useful pixel, worker liveness and the
+         * fresh source/geometry leases are authoritative.  MU1417 can keep
+         * delivering valid compressed frames while its NvSS output surface
+         * is not available yet.  A time-only stop here repeatedly destroyed
+         * a healthy decoder during cold boot.  Once pixels have appeared,
+         * retain the strict five-second fail-safe. */
+        if (s->phase == CW_CARPLAY &&
+            (now < s->last_frame_at || now - s->last_frame_at > 5U)) {
             return actions | cw_session_stop(s);
         }
         return actions;

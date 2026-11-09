@@ -33,7 +33,7 @@ def test_profile_package_is_layered_and_qnx_safe():
         assert 'online/carplay-profiles/controls/cw-rgi.so' in names
         for wrapper in (
             'stable', 'v145', 'v146', 'confirm_v146', 'controls',
-            'java', 'confirm', 'logs', 'status', 'oem',
+            'java', 'guidance', 'confirm_guidance', 'confirm', 'logs', 'status', 'oem',
         ):
             body = archive.read(f'install/scripts/carplay_profile_{wrapper}.sh').decode()
             assert '"$BASE/cwpm.sh"' in body
@@ -76,3 +76,30 @@ def test_combined_java_bridge_is_explicit_one_shot():
         assert '[ -s "$CONTROLS_STATE/attempted" ] || fail' in manager
         assert 'test gecombineerde Java-bridge eenmaal' in menu
         assert 'bevestig gecombineerde Java-bridge' in menu
+
+
+def test_guidance_uses_mm_ipod_and_separate_fail_closed_java_probe():
+    with zipfile.ZipFile(PACKAGE) as archive:
+        names = set(archive.namelist())
+        manager = archive.read('install/scripts/cwpm.sh').decode()
+        menu = archive.read('install/esd/OnlineMenu.esd').decode()
+        controls = 'online/carplay-profiles/controls/'
+        assert controls + 'mm-ipod-rgi.sh' in names
+        assert controls + 'PorscheCarPlayGuidance.experimental.jar' in names
+        assert controls + 'lsd-guidance.sh' in names
+        launcher = archive.read(controls + 'controls-launcher.sh').decode()
+        assert 'cw-rgi.so' not in launcher
+        mm_ipod = archive.read(controls + 'mm-ipod-rgi.sh').decode()
+        assert 'connectwow-rgi/mm-ipod' in mm_ipod
+        assert 'mv "$STATE/pending" "$STATE/attempted"' in mm_ipod
+        hmi = archive.read(controls + 'lsd-guidance.sh').decode()
+        assert 'controls-v15/PorscheCarPlayGuidance.experimental.jar' in hmi
+        assert '[ -s "$CW_EXTRA_PROBE_STATE/confirmed" ]' in hmi
+        assert 'test-guidance)' in manager
+        assert 'patch_iap2_config || fail' in manager
+        assert 'ConnectWow iAP2 Route Guidance message registration.' in manager
+        assert 'IAP2_GUIDANCE_SHA=5ca0a762dcf24bef3661f77dc4641433767026e4500a2a60f2c60ed0cc77af41' in manager
+        assert 'rollback_guidance' in manager
+        assert 'echo confirmed > /mnt/persist/connectwow-carplay/guidance-probe/confirmed' in manager
+        assert 'test routebegeleiding eenmaal' in menu
+        assert 'bevestig routebegeleiding' in menu

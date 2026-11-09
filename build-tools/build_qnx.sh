@@ -10,13 +10,13 @@ work=$(mktemp -d /tmp/porsche-qnx-build-XXXXXX)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 flags='-std=gnu99 -O2 -Wall -Wextra -Werror -Wno-unused-function -mno-unaligned-access -fPIC'
 for profile in handshake_probe capture_receiver; do
-    "$cc" $flags -shared -I"$root/build/native" \
+    "$cc" $flags -shared -I"$root/build/native" -I"$root/native" \
         "$root/build/native/porsche_$profile.c" \
         "$root/native/porsche_geometry.c" "$root/native/porsche_geometry_file.c" \
         -lsocket -o "$work/libcw-porsche-$profile.so"
 done
 "$cc" $flags -shared -I"$root/native" \
-    "$root/build/native/porsche_rgi_hook.c" "$root/native/porsche_rgi.c" \
+    "$root/native/porsche_rgi_hook.c" "$root/native/porsche_rgi.c" \
     -o "$work/libcw-porsche-rgi.so"
 for component in geometry geometry_file session nvss window window_loader yuv yuv_gl yuv_capture parser pixels frame_quality; do
     "$cc" $flags -I"$root/native" -c "$root/native/porsche_$component.c" -o "$work/$component.o"

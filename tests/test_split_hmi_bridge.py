@@ -29,6 +29,8 @@ class SplitBridgeTest(unittest.TestCase):
             oem = [name for name in jar.namelist() if name.startswith("de/audi/")]
         self.assertEqual(oem, [
             "de/audi/tghu/navi/app/cluster/ClusterService.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$1.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$State.class",
             "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance.class",
         ])
 

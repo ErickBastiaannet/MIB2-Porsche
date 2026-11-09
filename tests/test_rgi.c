@@ -31,5 +31,17 @@ int main(void){
     b=0;{unsigned char lane[32];size_t q=0;v[0]=0;v[1]=1;q+=tlv(lane+q,0,v,2);v[0]=2;q+=tlv(lane+q,1,v,1);v[0]=0;v[1]=0xc0;q+=tlv(lane+q,3,v,2);b+=tlv(body+b,2,lane,q);}n=message(m,0x5204,body,b);
     assert(cw_rgi_consume(&s,m,n)==1&&s.lane_count==1&&s.lanes[0].position==1&&s.lanes[0].direction==192);
     assert(cw_rgi_publish(&s,"/tmp/cw-rgi-test") == 0);assert(access("/tmp/cw-rgi-test",R_OK)==0);unlink("/tmp/cw-rgi-test");
-    puts("PORSCHE_RGI_PASS identify, subscription, cursor, street, maneuver, lanes, atomic state");return 0;
+    b=0;b+=tlv(body+b,0x13,(const unsigned char*)"Apple Maps",10);v[0]=1;b+=tlv(body+b,1,v,1);
+    n=message(m,0x5201,body,b);assert(cw_rgi_consume(&s,m,n));
+    s.distance=30;s.maneuvers[1].valid=1;s.lane_count=1;
+    b=0;v[0]=0;v[1]=0;v[2]=3;v[3]=0x84;b+=tlv(body+b,10,v,4);
+    b+=tlv(body+b,0x13,(const unsigned char*)"Google Maps",11);v[0]=1;b+=tlv(body+b,1,v,1);
+    n=message(m,0x5201,body,b);assert(cw_rgi_consume(&s,m,n));
+    assert(s.active&&s.distance==900&&!s.maneuvers[1].valid&&!s.lane_count&&!s.turn_to[0]);
+    assert(!strcmp(s.source_name,"Google Maps"));
+    b=0;v[0]=0;v[1]=0;v[2]=3;v[3]=0x20;b+=tlv(body+b,10,v,4);
+    n=message(m,0x5201,body,b);assert(cw_rgi_consume(&s,m,n)&&s.distance==800&&!strcmp(s.source_name,"Google Maps"));
+    b=0;v[0]=0;b+=tlv(body+b,0x14,v,1);n=message(m,0x5201,body,b);
+    assert(cw_rgi_consume(&s,m,n)&&!s.active);
+    puts("PORSCHE_RGI_PASS identify, subscription, cursor, street, maneuver, lanes, source switch, atomic state");return 0;
 }

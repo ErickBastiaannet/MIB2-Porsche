@@ -81,6 +81,17 @@ static void map_maneuver(unsigned type,int angle,unsigned junction,unsigned driv
 
 static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
     size_t o=6,vn; uint16_t id; const uint8_t *v; int changed=0;
+    /* iOS supplies one selected guidance source. Source name can follow the
+     * distance TLV, so invalidate the previous source before applying deltas. */
+    while (tlv_next(m,n,&o,&id,&v,&vn)) if(id==0x13) {
+        char source[97];text_copy(source,sizeof(source),v,vn);
+        if(strcmp(source,s->source_name)) {
+            uint64_t epoch=s->epoch;
+            memset(s,0,sizeof(*s));s->epoch=epoch;
+            memcpy(s->source_name,source,sizeof(source));changed=1;
+        }
+    }
+    o=6;
     while (tlv_next(m,n,&o,&id,&v,&vn)) {
         if (id==1 && vn>=1) { s->active=v[0]!=0; changed=1; }
         else if (id==3) { text_copy(s->current_road,sizeof(s->current_road),v,vn); changed=1; }
@@ -93,7 +104,10 @@ static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
             select_maneuver(s,index); changed=1;
         }
         else if (id==0x12 && vn>=1) { s->lane_visibility=v[0]?2:1; changed=1; }
+        else if (id==0x0f && vn>=1) { s->visible_in_app=v[0]; changed=1; }
+        else if (id==0x14 && vn>=1) { s->source_support_known=1;s->source_supports_rg=v[0]!=0;changed=1; }
     }
+    if(s->source_support_known&&!s->source_supports_rg)s->active=0;
     return changed;
 }
 
@@ -120,7 +134,7 @@ static int parse_maneuver(cw_rgi_state *s,const uint8_t *m,size_t n) {
         strncpy(item->exit_info,exit_info,sizeof(item->exit_info)-1);
     }
     if(index==s->maneuver_index || (s->epoch==0 && index==0)) select_maneuver(s,index);
-    s->active=1; return 1;
+    s->active=!(s->source_support_known&&!s->source_supports_rg); return 1;
 }
 
 static int parse_lanes(cw_rgi_state *s,const uint8_t *m,size_t n) {

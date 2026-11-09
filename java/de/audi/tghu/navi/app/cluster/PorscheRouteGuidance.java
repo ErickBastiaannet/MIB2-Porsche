@@ -28,6 +28,7 @@ public final class PorscheRouteGuidance {
     private static int lastMain = -1;
     private static String lastSemanticKey = "";
     private static boolean active;
+    private static long lastFailureLog;
 
     private PorscheRouteGuidance() { }
 
@@ -71,6 +72,10 @@ public final class PorscheRouteGuidance {
                 // Keep the last valid guidance briefly instead of flashing
                 // back to OEM navigation on one transient read failure.
                 long now = System.currentTimeMillis();
+                if (now - lastFailureLog >= 5000L) {
+                    log("guidance failure: ".concat(unavailable.toString()));
+                    lastFailureLog = now;
+                }
                 if (lastValidReadAt == 0L || now - lastValidReadAt >= READ_FAILURE_GRACE_MILLIS)
                     clearIfNeeded();
             }
@@ -170,7 +175,14 @@ public final class PorscheRouteGuidance {
         while (values.hasMoreTokens()) {
             String value = values.nextToken();
             if (value.equals(",")) { if (expectValue) throw new IOException("empty lane value"); expectValue = true; }
-            else { if (!expectValue || index == parsed.length) throw new IOException("invalid lane value"); parsed[index++] = bounded(value, 0, 255); expectValue = false; }
+            else {
+                if (!expectValue || index == parsed.length) throw new IOException("invalid lane value");
+                // Native carries the complete uint16 wire value; the DSI
+                // constructor below restores its signed short (-45 = 65491).
+                parsed[index] = bounded(value, 0, index == 1 ? 65535 : 255);
+                ++index;
+                expectValue = false;
+            }
         }
         if (index != parsed.length || expectValue) throw new IOException("incomplete lane value");
         return new NavLaneGuidanceData((short)parsed[0], (short)parsed[1], new byte[0],
@@ -204,6 +216,8 @@ public final class PorscheRouteGuidance {
                     || delta < updateThreshold(state.distance)) return;
         }
         target.setGALState(true);
+        target.setViewMode(1);
+        target.setRgActive(true);
         target.setDistanceToNextManeuver(state.distance, true, state.bargraph);
         target.setManeuverDescriptor(new BapManeuverDescriptor[]{
             new BapManeuverDescriptor(state.main, state.direction, state.z, new byte[0])
@@ -213,7 +227,7 @@ public final class PorscheRouteGuidance {
         // MU1417 exposes this exact package-private BAP path. The cluster's
         // position line shows the next road when available, otherwise the
         // road currently being driven.
-        target.setCurrentStreet(state.turnTo.length() != 0 ? state.turnTo : state.currentRoad);
+        if (state.currentRoad.length() != 0) target.setCurrentStreet(state.currentRoad);
         target.setRgDistanceToNextDestination(state.distanceRemaining, state.distanceRemaining > 0);
         target.setRgTimeToNextDestination(state.timeRemaining * 1000L, false, state.timeRemaining > 0);
         active = true;
@@ -240,10 +254,10 @@ public final class PorscheRouteGuidance {
             target.setLaneGuidance(new NavLaneGuidanceData[0], false);
             target.setManeuverDescriptor(new BapManeuverDescriptor[0]);
             target.setDistanceToNextManeuver(0, false, 0);
-            target.setCurrentStreet("");
             target.setRgDistanceToNextDestination(0, false);
             target.setRgTimeToNextDestination(0L, false, false);
             target.setGALState(false);
+            target.setRgActive(false);
         } catch (Throwable ignored) { }
         active = false;
         lastAppliedAt = 0L;

@@ -31,3 +31,39 @@ def test_renderer_reuses_serialized_supervisor_preflight():
     assert 'cw_dm_query(root, "gd"' not in worker
     assert "cw_window_start" in worker
     assert "retry_at = cw_monotonic_ms() + 250" in source
+
+
+def test_renderer_tolerates_transient_geometry_lease_misses():
+    source = (ROOT / "native/porsche_unit.c").read_text()
+    assert source.count("next_geometry_check = checked_at + 250U") == 2
+    assert source.count("checked_at - last_geometry_ok > 2000U") == 2
+    assert "CARPLAY_SOURCE_EXIT geometry-unavailable" in source
+    assert "CARPLAY_RENDERER_EXIT geometry-unavailable" in source
+
+
+def test_supervisor_reuses_a_valid_existing_cluster_window():
+    source = (ROOT / "native/porsche_unit.c").read_text()
+    assert "cw_dm_layer(text, LAYER, geometry.width, geometry.height, 0) ||" in source
+    assert "cw_dm_layer(text, LAYER, geometry.width, geometry.height, 1)" in source
+
+
+def test_first_pixel_wait_uses_source_liveness_not_a_fixed_deadline():
+    source = (ROOT / "native/porsche_unit.c").read_text()
+    session = (ROOT / "native/porsche_session.c").read_text()
+    assert "if (have_pixels && cw_monotonic_ms() - last_pixels > 5000U)" in source
+    assert "have_pixels ? 5000U : 15000U" not in source
+    assert "s->phase == CW_CARPLAY" in session
+    assert "s->phase == CW_WAIT_VIDEO ? 15U" not in session
+
+
+def test_supervisor_tolerates_one_transient_geometry_read_gap():
+    source = (ROOT / "native/porsche_unit.c").read_text()
+    assert "cw_geometry last_valid_geometry" in source
+    assert "last_geometry_read_ok" in source
+    assert "cw_monotonic_ms() - last_geometry_read_ok <= 2000U" in source
+
+
+def test_first_frame_waits_for_overlay_without_killing_healthy_worker():
+    source = (ROOT / "native/porsche_unit.c").read_text()
+    assert "!output_ok && session.phase == CW_WAIT_VIDEO" in source
+    assert "retain the healthy decoder and retry activation" in source

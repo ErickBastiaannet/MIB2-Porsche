@@ -74,7 +74,10 @@ def main() -> None:
         'libcw-query-stdio.so': stable['libcw-query-stdio.so'],
         'controls-launcher.sh': (ROOT / 'unit/dio_manager_controls.sh').read_bytes(),
         'lsd-controls.sh': (ROOT / 'unit/lsd_controls_watchdog.sh').read_bytes(),
+        'lsd-guidance.sh': (ROOT / 'build/zoom-confirmed-guidance-oneshot-lsd.sh').read_bytes(),
+        'mm-ipod-rgi.sh': (ROOT / 'unit/mm_ipod_rgi.sh').read_bytes(),
         'PorscheCarPlayBridge.experimental.jar': (ROOT / 'build/PorscheCarPlayBridge.experimental.jar').read_bytes(),
+        'PorscheCarPlayGuidance.experimental.jar': (ROOT / 'build/PorscheCarPlayGuidance.experimental.jar').read_bytes(),
     }
     stable_manifest = manifest(stable)
     v145_manifest = manifest(v145)
@@ -114,6 +117,12 @@ script
    value sys 1 0x0100 "/scripts/online/carplay_profile_java.sh"
    label "CarPlay: test gecombineerde Java-bridge eenmaal"
 script
+   value sys 1 0x0100 "/scripts/online/carplay_profile_guidance.sh"
+   label "CarPlay: test routebegeleiding eenmaal"
+script
+   value sys 1 0x0100 "/scripts/online/carplay_profile_confirm_guidance.sh"
+   label "CarPlay: bevestig routebegeleiding"
+script
    value sys 1 0x0100 "/scripts/online/carplay_profile_confirm.sh"
    label "CarPlay: bevestig gecombineerde Java-bridge"
 script
@@ -130,6 +139,7 @@ script
         'stable': 'install-stable', 'v145': 'install-v145', 'v146': 'install-v146',
         'confirm_v146': 'confirm-v146', 'controls': 'install-controls',
         'java': 'test-controls-java',
+        'guidance': 'test-guidance', 'confirm_guidance': 'confirm-guidance',
         'confirm': 'confirm-controls', 'logs': 'collect-logs',
         'status': 'status', 'oem': 'restore-oem',
     }

@@ -292,7 +292,7 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
             '#endif',
             1,
         )
-        text = prefix + '\n' + text
+        text = prefix + '\n' + text + '\n#include "porsche_autosupervisor.inc"\n'
         name = 'porsche_capture_receiver.c'
     (target / name).write_text(text, encoding='utf-8', newline='\n')
     fixture = (upstream / 'src/card-core/tests/test_scene_contract.original.c').read_text(encoding='utf-8')

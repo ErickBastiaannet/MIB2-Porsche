@@ -182,6 +182,8 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
     size_t config_size = 0;
     uint32_t generation = 0, sequence = 1;
     uint64_t last_data = cw_monotonic_ms();
+    uint64_t last_geometry_ok = cw_monotonic_ms();
+    uint64_t next_geometry_check = 0;
     int fd = -1, result = 1;
     struct stat st;
 #ifdef CW_YUV_RENDERER
@@ -242,9 +244,23 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
     while (!stopped && getppid() == parent) {
         uint32_t available;
         cw_geometry current = {0};
-        if (!cw_geometry_read(GEOMETRY, now_seconds(), &current) || !current.active ||
-            current.width != geometry->width || current.height != geometry->height)
-            break;
+        /* The supervisor rewrites the geometry lease atomically once per
+         * second.  A transient read miss is not a disconnect; applying the
+         * renderer's tolerance here prevents a healthy decoder from exiting
+         * immediately after the first active frame. */
+        if (cw_monotonic_ms() >= next_geometry_check) {
+            uint64_t checked_at = cw_monotonic_ms();
+            next_geometry_check = checked_at + 250U;
+            if (cw_geometry_read(GEOMETRY, now_seconds(), &current)) {
+                if (!current.active || current.width != geometry->width ||
+                    current.height != geometry->height)
+                    break;
+                last_geometry_ok = checked_at;
+            } else if (checked_at - last_geometry_ok > 2000U) {
+                fputs("CARPLAY_SOURCE_EXIT geometry-unavailable\n", stderr);
+                break;
+            }
+        }
         if (ring->magic != ALT_FRAME_RING_MAGIC || ring->version != ALT_FRAME_RING_VERSION) {
             pause_ms(10);
             continue;
@@ -425,6 +441,8 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
     size_t bytes = (size_t)geometry->width * geometry->height * 3 / 2;
     uint32_t sequence = 0;
     uint64_t last_pixels = cw_monotonic_ms();
+    uint64_t last_geometry_ok = cw_monotonic_ms();
+    uint64_t next_geometry_check = 0;
     pid_t decoder = -1, renderer_pid = getpid();
     int have_pixels = 0, result = 1;
     memset(&window, 0, sizeof(window));
@@ -471,7 +489,7 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
         goto done;
     }
     while (!stopped && getppid() == parent) {
-        cw_geometry current;
+        cw_geometry current = {0};
         int status;
         if (waitpid(decoder, &status, WNOHANG) == decoder) {
             if (WIFSIGNALED(status))
@@ -482,11 +500,28 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
             decoder = -1;
             break;
         }
-        if (!cw_geometry_read(GEOMETRY, now_seconds(), &current) || !current.active ||
-            current.width != geometry->width || current.height != geometry->height) {
-            fprintf(stderr, "CARPLAY_RENDERER_EXIT geometry active=%u size=%ux%u expected=%ux%u\n",
-                    current.active, current.width, current.height, geometry->width, geometry->height);
-            break;
+        /* The supervisor refreshes this lease once per second. Reading it in
+         * every 5 ms render iteration and treating one transient miss as a
+         * disconnect caused repeated cold-start workers. Sample at a bounded
+         * rate and tolerate a short unreadable interval; an explicit source
+         * or size change still ends the renderer immediately. */
+        if (cw_monotonic_ms() >= next_geometry_check) {
+            uint64_t checked_at = cw_monotonic_ms();
+            next_geometry_check = checked_at + 250U;
+            if (cw_geometry_read(GEOMETRY, now_seconds(), &current)) {
+                if (!current.active || current.width != geometry->width ||
+                    current.height != geometry->height) {
+                    fprintf(stderr,
+                            "CARPLAY_RENDERER_EXIT geometry active=%u size=%ux%u expected=%ux%u\n",
+                            current.active, current.width, current.height, geometry->width,
+                            geometry->height);
+                    break;
+                }
+                last_geometry_ok = checked_at;
+            } else if (checked_at - last_geometry_ok > 2000U) {
+                fputs("CARPLAY_RENDERER_EXIT geometry-unavailable\n", stderr);
+                break;
+            }
         }
         if (cw_pixels_read(&channel, image, bytes, &sequence)) {
             uint32_t lease[] = {sequence, now_seconds(), geometry->width, geometry->height};
@@ -505,11 +540,13 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
                     goto done;
             }
         }
-        /* The MU1417 decoder can need several seconds after a fresh USB/
-         * CarPlay session before its first useful surface is available. Give
-         * only that first frame extra grace; once rendering has started, keep
-         * the five-second fail-safe that restores the OEM map promptly. */
-        if (cw_monotonic_ms() - last_pixels > (have_pixels ? 5000U : 15000U)) {
+        /* Before the first useful surface, source/geometry/child liveness are
+         * authoritative and the OEM map remains visible.  MU1417 may keep a
+         * valid compressed stream pending while NvSS finishes cold-starting;
+         * killing that decoder on a fixed deadline caused the observed retry
+         * storm.  After the first pixel, retain the strict five-second
+         * fail-safe so a stalled visible CarPlay layer restores OEM quickly. */
+        if (have_pixels && cw_monotonic_ms() - last_pixels > 5000U) {
             fputs("CARPLAY_RENDERER_EXIT pixel-timeout\n", stderr);
             break;
         }
@@ -546,6 +583,8 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
     cw_session session;
     cw_session_init(&session);
     cw_geometry negotiated;
+    cw_geometry last_valid_geometry;
+    uint64_t last_geometry_read_ok = 0;
     unsigned tries;
     int previous_alive = -1, previous_valid = -1;
     pid_t startup_owner = 0;
@@ -609,6 +648,18 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
         char enabled[512];
         unsigned actions;
         int alive = source_ready(owner), valid = cw_geometry_read(GEOMETRY, now, &geometry);
+        if (valid) {
+            last_valid_geometry = geometry;
+            last_geometry_read_ok = cw_monotonic_ms();
+        } else if (last_geometry_read_ok &&
+                   cw_monotonic_ms() - last_geometry_read_ok <= 2000U) {
+            /* The same atomically refreshed lease is consumed by three
+             * processes.  Preserve the last verified value across one short
+             * read gap; explicit inactive/changed geometry remains immediate
+             * and a genuinely stale lease still expires after two seconds. */
+            geometry = last_valid_geometry;
+            valid = 1;
+        }
         int startup_stable = 0;
         if (snprintf(enabled, sizeof(enabled), "%s/enabled", root) >= (int)sizeof(enabled) ||
             access(enabled, F_OK) != 0)
@@ -678,7 +729,8 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
             cw_display display;
             if (cw_dm_query(root, "gs", text, sizeof(text)) && cw_dm_display(text, &display) &&
                 cw_dm_query(root, "gd", text, sizeof(text)) &&
-                cw_dm_layer(text, LAYER, geometry.width, geometry.height, 0)) {
+                (cw_dm_layer(text, LAYER, geometry.width, geometry.height, 0) ||
+                 cw_dm_layer(text, LAYER, geometry.width, geometry.height, 1))) {
                 if (cw_map_context((unsigned)display.context))
                     original = (unsigned)display.context;
                 else if ((display.context == 70 || display.context == 149) &&
@@ -757,8 +809,14 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
                 output_ok = 0;
             if (output_ok && !cw_wire_write(READY, "CWRD1", ready, 4))
                 output_ok = 0;
-            actions =
-                cw_session_frame(&session, session.epoch, now, ready[2], ready[3], 1, output_ok);
+            /* A first decoded frame can precede DisplayManager's overlay
+             * acknowledgement by a short interval.  While still waiting to
+             * show CarPlay, retain the healthy decoder and retry activation;
+             * output failure remains fatal once the CarPlay layer is active. */
+            actions = (!output_ok && session.phase == CW_WAIT_VIDEO)
+                          ? CW_NONE
+                          : cw_session_frame(&session, session.epoch, now, ready[2], ready[3], 1,
+                                             output_ok);
             if (actions & CW_SHOW_CARPLAY) {
                 char text[16384];
                 cw_display display;

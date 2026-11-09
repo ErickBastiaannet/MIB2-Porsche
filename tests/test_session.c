@@ -84,6 +84,16 @@ int main(int argc, char **argv) {
     g.timestamp = 1012;
     CHECK(cw_session_update(&s, &g, 1012, 3, 1) == (CW_STOP_VIDEO | CW_RESTORE_OEM));
     CHECK(cw_session_stop(&s) == CW_NONE);
+    /* MU1417 can keep a valid source alive while NvSS waits for its first
+     * output surface.  Source/geometry/worker liveness ends this phase; a
+     * wall-clock deadline must not churn the healthy decoder. */
+    cw_session_init(&s);
+    g.timestamp = 2000;
+    CHECK(cw_session_update(&s, &g, 2000, 4, 1) == CW_NEGOTIATE);
+    g.timestamp = 2015;
+    CHECK(cw_session_update(&s, &g, 2015, 4, 1) == CW_NONE);
+    g.timestamp = 2120;
+    CHECK(cw_session_update(&s, &g, 2120, 4, 1) == CW_NONE);
     if (argc == 2) {
         /* Parse a real record produced by the Java observer fixture. */
         CHECK(cw_geometry_read(argv[1], 0xffffffffU, &g) == 0); /* expired */

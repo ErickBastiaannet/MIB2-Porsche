@@ -33,6 +33,8 @@ typedef struct {
     char current_road[97];
     char turn_to[97];
     char destination[97];
+    char source_name[97];
+    uint8_t source_support_known, source_supports_rg, visible_in_app;
 } cw_rgi_state;
 
 int cw_rgi_consume(cw_rgi_state *state, const uint8_t *message, size_t length);

@@ -6,7 +6,7 @@ STOCK=/mnt/app/eso/hmi/lsd/lsd.sh.cw-stock
 JAR=$ROOT/PorscheCarPlayBridge.experimental.jar
 STATE=/mnt/persist/connectwow-carplay/controls-v15
 COMPLETE=1
-for REQUIRED in installed.manifest enabled cw-window-candidate cw-receiver-controls.so cw-rgi.so libcw-query-stdio.so launcher.sh; do
+for REQUIRED in installed.manifest enabled cw-window-candidate cw-receiver-controls.so libcw-query-stdio.so launcher.sh; do
     [ -s "$ROOT/$REQUIRED" ] || COMPLETE=0
 done
 SDLOG=

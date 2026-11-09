@@ -31,6 +31,10 @@ public final class RouteGuidanceTextFixture {
         Method read = PorscheRouteGuidance.class.getDeclaredMethod("read");
         read.setAccessible(true);
         Object state = read.invoke(null);
+        Method laneParser = PorscheRouteGuidance.class.getDeclaredMethod("lane", String.class);
+        laneParser.setAccessible(true);
+        laneParser.invoke(null, "0,65491,0,1,1,0,2");
+        laneParser.invoke(null, "2,45,0,1,1,0,0");
         Field current = state.getClass().getDeclaredField("currentRoad");
         Field turn = state.getClass().getDeclaredField("turnTo");
         current.setAccessible(true); turn.setAccessible(true);
@@ -45,6 +49,10 @@ public final class RouteGuidanceTextFixture {
         Method update = PorscheRouteGuidance.class.getDeclaredMethod("update", state.getClass());
         update.setAccessible(true);
         update.invoke(null, state);
+        if (!listener.rgActive || listener.viewMode != 1)
+            throw new AssertionError("Porsche route guidance status/type were not activated");
+        if (!"Nieuwe Erpseweg".equals(listener.currentStreet))
+            throw new AssertionError("next road overwrote current-position street");
         if (listener.distanceCalls != 1) throw new AssertionError("first guidance update missing");
         if (listener.destinationDistance != 12345 || listener.destinationTime != 3600)
             throw new AssertionError("destination distance/time missing");
