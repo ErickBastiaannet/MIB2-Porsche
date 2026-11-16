@@ -941,3 +941,14 @@ Dit bevestigt niet automatisch OEM-logoherstel na disconnect, USB-reconnect,
 zoom/guidance tijdens deze proef of koude boot. Die controles staan nog open.
 Geen permanente logo-activatie gevraagd of uitgevoerd. Volgende boot selecteert
 weer de oorspronkelijke bevestigde zoom-JAR; logo-proef-ticket is attempted.
+
+
+## Aanvullend logo-onderzoek: definitieve BAP-wireketen
+
+Zie `docs/SATELLITE_CLUSTER_LOGO.md`: AppConnectorNavi gebruikt functie44/0x2c,
+MapViewAndOrientation_Status heeft expliciet STANDARD0/GOOGLE_EARTH1/TRAFFIC2.
+Wirebericht bevat modus/status, geen bitmap/URI/logo-ID. Specifiek Google-logo
+lijkt daarom een lokaal door de teller gekozen afbeelding; het exacte bitmapadres
+is niet aangetoond en zou tellerfirmware/resources vereisen. Alleen PCM-firmware
+is onderzocht. Geen nieuwe code/unitwijziging gedaan; permanente logo-onderdrukking
+blijft ongewijzigd. Classhashes en bronnen in het onderzoeksdocument.

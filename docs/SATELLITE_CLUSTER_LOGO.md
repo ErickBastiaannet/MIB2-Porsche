@@ -76,3 +76,49 @@ Zie bovenste actuele sectie in CODEX_HANDOVER.md voor live hashes, generator,
 back-ups en resterende fysieke checks. Runtime-transities view0/true -> view1/false
 -> view0/true gezien. Geen extra reboot gedaan. Vorige one-boot-status hierboven
 is historisch en niet meer de actuele configuratie.
+
+
+## Aanvullend protocolbewijs: waar komt het beeld van het logo vandaan?
+
+16 november 2026, uitsluitend statische analyse; geen unit- of broncodewijziging.
+De keten is nu gevolgd tot de uiteindelijke BAP-serializer:
+
+1. `AppConnectorNavi.updateMapView(int,int)` haalt met
+   `getBAPFunctionPropertyFSG(44)` het MapViewAndOrientation-statusobject op,
+   kloont dit, schrijft `mapView` en `supplementaryMapView`, en roept
+   `sendStatusIfChanged` aan. Geen afbeeldingsdata in deze update.
+2. `de/vw/mib/bap/generated/navsd/serializer/MapViewAndOrientation_Status`
+   declareert letterlijk `MAP_VIEW_STANDARD=0`, `MAP_VIEW_GOOGLE_EARTH=1`,
+   `MAP_VIEW_TRAFFIC=2`. `functionId()` retourneert44 (0x2c).
+3. `serialize(BitStream)` schrijft mapView als eerste byte via pushByte, gevolgd
+   door supplementaryMapView, supportedMapViews, supportedSupplementaryMapViews,
+   mapVisibility, mapOrientation en modification. Geen PNG/JPEG, URI, resource-ID,
+   providernaam of vrije tekst voor een eigen logo in deze status.
+4. Een gerichte naamcontrole van alle beschikbare navsd/serializer-klassen vond
+   geen klasse met logo/provider/image/icon/resource in de naam. Dit is slechts
+   aanvullend zoekbewijs, GEEN bewijs dat er geen ander resourceprotocol bestaat.
+
+**Gevolgtrekking:** het specifieke oude Google-logo wordt zeer waarschijnlijk
+lokaal door de teller gekozen bij de Google-Earth-modusmelding. De werkende fysieke
+onderdrukkingsproef past daarbij: de kaartpixels bleven zichtbaar terwijl alleen
+de modusmelding veranderde. Het logo zelf wordt niet via het onderzochte
+MapViewAndOrientation-bericht meegestuurd. Dit bewijst nog niet in welk teller-
+bestand het zit of dat het nooit eerder via een andere transportlaag is geladen.
+
+De aanwezige MHI2-firmware is PCM/MMX/RCC-firmware, geen aangetoonde firmwaredump
+van het instrumentenpaneel. Voor een exact bitmap-/resourceadres en vervanging
+in de teller is een bijpassende tellerfirmware/resourceset nodig. Die is in dit
+onderzoek niet vastgesteld of geopend. De aparte PCM-providerlogo-downloads
+moeten niet zonder bewijs met deze vaste Google-Earth-modusafbeelding worden
+vereenzelvigd. Via BAP44 kan deze afbeelding niet vrij door ConnectWow worden
+vervangen. Een eigen logo in onze CarPlay-renderer tekenen is een afzonderlijk
+mogelijk ontwerp, geen bewezen of uitgevoerde vervanging van de tellerresource.
+
+Analyse-uitvoer: `.tmp/logo-research/AppConnectorNavi.javap.txt`,
+`MapViewStatus.javap.txt`, `wire.jar`, `wire-class-names.json`. De javap-dumps
+kunnen door PowerShell UTF-16 zijn. Controleer encoding bij programmatisch lezen.
+Exacte teruggewonnen classhashes:
+
+- `de/audi/app/combi/bap/app/navi/AppConnectorNavi.class`: `d836dd120f7363ec92bcb437c123d01ba8c7cc137e64f13d6791e1a57bd9b032`
+
+- `de/vw/mib/bap/generated/navsd/serializer/MapViewAndOrientation_Status.class`: `682c5bdfb893ed685462c6b82703eba4090b97742324f97c1bfa1bc76b0ec511`
