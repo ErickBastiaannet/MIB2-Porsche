@@ -2,6 +2,38 @@
 
 Laatst bijgewerkt: 16 november 2026
 
+## NIEUWSTE LIVE STATUS ? CarPlay-logo-onderdrukking permanent bevestigd
+
+16 november 2026: gebruiker zag CarPlay-kaart zonder Google-logo en vroeg
+expliciet permanent activeren. `unit/confirm_satellite_logo.sh` uitgevoerd na
+live hashcontrole en QNX-syntaxiscontrole. Resultaat
+SATELLITE_LOGO_CONFIRMED_NO_REBOOT. Bevestiging teruggelezen uit
+`/mnt/persist/connectwow-carplay/satellite-logo-probe/confirmed`.
+
+Actuele LSD-hash5a7f5a087afb6699f2ba5ecb2297e2235f403db0e591164dd0749178dda2a368.
+Aparte logo-/zoom-JAR59842f9e68060680a93dcbb2eba6dbeb184dfd1295a626782b832c9905bcf542
+wordt bij elke start geselecteerd met property
+`connectwow.carplay.satelliteLogo=hide-during-carplay`. Originele zoom-JAR264f4231
+blijft aanwezig. Video-/guidancepayloads en hun bevestigingen niet gewijzigd.
+Geen nieuwe reboot: lopende proef draaide al met dezelfde fysiek bevestigde JAR.
+
+Backup onder controls-v15/before-logo-probe-20261116/: `lsd.sh` is de baseline93d7fed1;
+`lsd-logo-oneshot.sh` is de eerdere proefstarter52e32b89. Hashes gevalideerd.
+Generator `build-tools/prepare_satellite_logo_launcher.py` maakt de bevestigde
+starter vanuit exact baseline93d7fed1; installatie bevestigt alleen na exact
+proefhash52e32b89. Verwijderen confirmed-marker laat volgende start terugvallen
+naar oorspronkelijke zoom. Geen automatische herstart of permanent herstel nodig.
+
+Runtime-log v??r bevestiging: view0/carplaytrue, vervolgens view1/carplayfalse,
+dan weer view0/carplaytrue. Herstel/onderdrukking werkt dus volgens de log;
+alleen afwezig logo tijdens CarPlay is fysiek door gebruiker bevestigd. Langdurige
+koude/slaapstart en herstelweergave nog niet fysiek bewezen. Shellfixture bevestigt
+herhaald laden, terugval na markerverwijdering en ongewijzigde guidancekeuze.
+
+Deze nieuwste sectie vervangt eerdere one-boot-/niet-ge?nstalleerd-statussen
+verderop. Nog niet gecommit/gepusht; generieke SD-profielintegratie blijft open.
+
+
 ## ACTUEEL ? nieuwe video-starter na herstart fysiek bevestigd
 
 Herstart uitgevoerd na expliciete stilstandbevestiging. SI startte de nieuwe
@@ -837,3 +869,75 @@ Activeer de gecombineerde bridge alleen nadat ieder onderdeel cold-start, reconn
 - Actuele profiel-ZIP: `build/porsche-carplay-profiles-MU1417.zip`, SHA-256 `ebb7862f105ca44e8e905bacba6ab93b5767855c96a9b52139b620fcdd87545c`.
 - Gecombineerde bridge in dat pakket: SHA-256 `bfffaa8e9a869168cbf9c398dcc42ba8d6c6030b4e3fb048db4d87661a9f522f`.
 - **Niet fysiek bevestigd en niet gedeployed.** Eerst native V15 normaal laten starten; daarna pas de gecombineerde one-shot uitvoeren en boot, navigatie, display, zoom, routegegevens, notificaties en volgende-bootfallback controleren.
+
+
+## Onderzoek oud Google-logo op originele satellietkaart
+
+Zie `docs/SATELLITE_CLUSTER_LOGO.md`: exacte OEM-keten SatelliteMapsMediatorFSM
+naar BAP MapView gevonden. Teller-overlay is aannemelijk, fysieke logo-only-
+uitschakelproef nog niet gedaan. POI-logo_map.png niet als oplossing gebruiken.
+Geen code of unit gewijzigd voor dit onderzoek.
+
+
+## CarPlay-only satellietlogo-proef lokaal gebouwd (nog niet op unit)
+
+Gebruiker verduidelijkte: alleen bij CarPlay moet het oude Google-logo weg;
+op de originele satellietkaart mag de OEM-weergave terugkeren. Ge?soleerde
+proef onder `optional/satellite-logo/`, builder `build-tools/build_satellite_logo_probe.py`.
+E?n outgoing BAP-call wordt gefilterd, OEM opgeslagen mapView blijft intact.
+Nieuwe helper pollt bestaande ready-lease500ms, herstelt laatste OEM-waarde bij
+leaseverlies, opt-in JVM-property; geen constructor-thread, geen file-I/O in
+BAP-callback. Geen guidance-/native-/startupwijzigingen. Boundarytest slaagt.
+Hosttest: opt-in, suppress/restore, OEM-refresh, supplementary behoud en
+retry bij fout geslaagd; ASM/legacy-bytecode en ongewijzigde andere zoomclasses
+geverifieerd. Lokale bronzoomhash264f4231...6779a82; candidate
+`build/PorscheCarPlayZoomLogo.probe.jar` hash
+72a5feca56b0c2062d139cdfb906f028166fe7255a3d333e9e1af0c3f54a9e42.
+Live bronzoomhash nog vergelijken v??r proefinstallatie! Effect MapView0 op
+andere tellerfuncties onbewezen. NIET ge?pload/ge?nstalleerd, geen reboot.
+Lees optional README voor exacte proefacceptatie. Niet als fysiek opgelost melden.
+
+
+## Satellietlogo-proef ge?nstalleerd als one-boot proef; herstart aangevraagd
+
+Gebruiker vroeg test en bevestigde stilstand/herstart. Live bronzoomhash
+264f4231...6779a82 komt overeen met lokale bron. Nieuwe kandidaat heeft begrensde
+RAM-transitielog (max64 regels), hash59842f9e68060680a93dcbb2eba6dbeb184dfd1295a626782b832c9905bcf542.
+De eerdere hash72a5feca is hiermee vervallen.
+
+`/ramdisk/cw-logo-probe-20261116/install.sh` gaf
+SATELLITE_LOGO_ONESHOT_READY_NO_REBOOT. Nieuwe aparte JAR staat onder
+zoom-probe/PorscheCarPlayZoomLogo.probe.jar. Originele zoom-JAR264f4231 blijft
+ongewijzigd. LSD52e32b89ffee426b71c6836356ce684eaf102b884ebddbde066c05fc3e335f08
+bevat uitsluitend optionele selectie van logo-JAR plus property binnen bestaande
+zoom-enablebranch. Ticket satellite-logo-probe/pending wordt bij boot attempted;
+volgende boot laadt weer gewone bevestigde zoom. Guidance/native/video niet gewijzigd.
+Backup originele LSD93d7fed1102c20727a24acefbf43380001f5c9ef32319800bcbe74206d13e59e
+in controls-v15/before-logo-probe-20261116/lsd.sh. Beide doelhashes teruggelezen.
+Lokale fixtures voor lifecycle en one-shot slagen; scripts syntax op echte QNX goed.
+Herstart via RCC mib2_ioc_flash uitgevoerd na expliciete bevestiging. Nu eerst
+boot/CarPlay/kaart/guidance en /ramdisk/cw-satellite-logo.log controleren; fysiek
+logo-effect nog niet bevestigd! Satellietstand voor de proef ingeschakeld laten.
+Geen permanente logo-confirmatie en geen commit/push voor deze proef gedaan.
+
+
+Logo-proef runtime na herstart: ticket attempted, J9 bevat logo-JAR en opt-in-property.
+Nieuwe DIO2515065 gestart via video-bootstrap; supervisor2584699 en workers2961478/
+2961538. Verse CWRD1 epoch466/timestamp80/800x480. Log
+`/ramdisk/cw-satellite-logo.log`: `SATELLITE_LOGO view=0 extra=0 carplay=true`.
+Dit bevestigt uitvoering/filtering, niet het fysieke verdwijnen van Google-logo.
+Gebruikersvraag staat open: kaart zonder/met logo of geen kaart. Guidance meldde
+op deze opname stale guidance state; route na herstart nog niet bevestigd. Geen
+permanente activatie; bij volgende boot oorspronkelijke bevestigde zoom geselecteerd.
+
+
+## Logo-proef fysiek bevestigd ? 16 november 2026
+
+Gebruiker antwoordde expliciet `CarPlay-kaart zonder Google-logo` na bovenstaande
+one-boot proef, met instructie satellietweergave ingeschakeld te houden. Het
+onderdrukken tijdens CarPlay is daarmee fysiek bevestigd. Runtimebewijs:
+`SATELLITE_LOGO view=0 extra=0 carplay=true`, verse kaartlease800x480.
+Dit bevestigt niet automatisch OEM-logoherstel na disconnect, USB-reconnect,
+zoom/guidance tijdens deze proef of koude boot. Die controles staan nog open.
+Geen permanente logo-activatie gevraagd of uitgevoerd. Volgende boot selecteert
+weer de oorspronkelijke bevestigde zoom-JAR; logo-proef-ticket is attempted.
