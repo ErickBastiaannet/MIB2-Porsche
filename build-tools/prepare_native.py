@@ -292,7 +292,11 @@ OSStatus AirPlayReceiverSessionSetNightMode(void *session, int night,
             '#endif',
             1,
         )
-        text = prefix + '\n' + text + '\n#include "porsche_autosupervisor.inc"\n'
+        ready_line='if (marker_status == 0) stream_ready_signaled = time(NULL);'
+        if text.count(ready_line) != 1:
+            raise ValueError('Unexpected receiver ready-callback layout')
+        text=text.replace(ready_line, 'if (marker_status == 0) { cw_auto_supervisor_start(); stream_ready_signaled = time(NULL); }',1)
+        text = prefix + '\nstatic void cw_auto_supervisor_start(void);\n' + text + '\n#include "porsche_autosupervisor.inc"\n'
         name = 'porsche_capture_receiver.c'
     (target / name).write_text(text, encoding='utf-8', newline='\n')
     fixture = (upstream / 'src/card-core/tests/test_scene_contract.original.c').read_text(encoding='utf-8')

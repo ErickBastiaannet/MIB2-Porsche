@@ -30,8 +30,14 @@ class SplitBridgeTest(unittest.TestCase):
         self.assertEqual(oem, [
             "de/audi/tghu/navi/app/cluster/ClusterService.class",
             "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$1.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$Presentation.class",
             "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance$State.class",
             "de/audi/tghu/navi/app/cluster/PorscheRouteGuidance.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidanceSideStreets$Entry.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidanceSideStreets$EntryList.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidanceSideStreets$IntList.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidanceSideStreets$SplitAngles.class",
+            "de/audi/tghu/navi/app/cluster/PorscheRouteGuidanceSideStreets.class",
         ])
 
 

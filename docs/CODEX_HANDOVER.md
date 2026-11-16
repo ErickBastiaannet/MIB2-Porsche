@@ -1,6 +1,319 @@
 # Actuele Codex-overdracht — Porsche CarPlay-cluster
 
-Laatst bijgewerkt: 9 november 2026
+Laatst bijgewerkt: 16 november 2026
+
+## ACTUEEL ? nieuwe video-starter na herstart fysiek bevestigd
+
+Herstart uitgevoerd na expliciete stilstandbevestiging. SI startte de nieuwe
+launcher: `RECEIVER_VIDEO_BOOTSTRAP pid=2560121`; dezelfde PID werd de originele
+DIO. Capturelog toont geldige AVCC-frames800x480. Supervisor2629754 met
+workers2707580/2707586; verse ready `CWRD1 654 85 800 480 c283a0de`.
+Guidance native Apple Maps epoch10, afstand91m, Java apply bleef lopen zonder
+gemelde fout (route17143m/1320s). Gebruiker bevestigde expliciet:
+**Kaart en routeaanwijzingen zichtbaar**. Deze start is fysiek bevestigd;
+meerdere USB-reconnects, koude slaapstart en lange duur nog niet getest.
+Permanent ge?nstalleerde starter/config en guidance-confirmedmarkers blijven
+staan. Geen extra proefmarker nodig voor deze starter. Niet gecommit/gepusht.
+
+16 november 2026: gebruiker meldde kaart weg na de kaartfix en eiste oplossen,
+geen terugzetactie. De kaart was kort ACTIVE, daarna stopte eigenaar2842749;
+nieuwe OEM-DIO PID8425601 draaide zonder capturebibliotheek en zonder de
+bedoelde video-omgeving. Vastgesteld via gefilterde pidin-env/mem en lease/logs;
+waarom SI deze eerdere envs niet toepaste is niet bewezen. Guidance bleef lopen.
+
+Nieuwe reparatie: `unit/carplay_receiver_start.sh` expliciet als SI-child
+`/mnt/app/eso/bin/apps/cw-carplay-start`; zet video-env en preload zelf en exec't
+onmiddellijk de ongewijzigde OEM `dio_manager.cw-stock` met dezelfde PID.
+Referentiepatroon: `.tmp/mib2q-carplay-rgi/deploy/smartphone_integrator/carplay_startup.sh`.
+Geen nieuwe RX/TX-hook, Java-thread of andere capturebibliotheek.
+`build-tools/prepare_receiver_start_config.py` verwijdert alleen de zes eerdere
+video-envregels uit SI en wijzigt uitsluitend het CarPlay-executable. Andere
+children/watchdogs/USB-instellingen blijven gelijk. Geen rollback uitgevoerd.
+
+Op de unit ge?nstalleerd met `unit/install_receiver_bootstrap.sh`, melding
+VIDEO_BOOTSTRAP_INSTALLED_RESTART_REQUIRED. Beide doelhashes teruggelezen:
+- starter f58eba1a8fed93dd6e5e521bf46990be0af9b28f0b01b1025c29b2b7a61bc85e;
+- SI-config 722b47123494e22b8fa4b4e50b3cce07f5b0399f1f31c7fd5e8f51ff981350d9.
+- vorige config e042e65da4f366fef35c700528c7054fcf7f6e38dba23f7c291928895d91cb86
+  geback-upt onder controls-v15/before-video-bootstrap-20261116/smartphone_integrator.json.
+- Nieuw window41414ee5, capturec0208032, guidancec917554d/a24db7e9 behouden.
+
+Lokaal getest: twee configtests; drie verse exec-starts met dezelfde PID,
+expliciete env, argumentbehoud en uitgeschakelde OEM-fallback; installtransactie
+op mockfilesystem inclusief weigeren corrupt payload v??r mount, backup en
+remount beide partities read-only. Beide scripts ksh-syntax op echte unit goed.
+Dit bewijst nog niet dat SI de starter na reboot uitvoert of fysieke reconnect werkt.
+Pakket: `build/receiver-video-bootstrap-MU1417.zip`.
+Tests: `tests/receiver_bootstrap_host.py`, `tests/receiver_bootstrap_transaction.py`,
+`tests/test_receiver_start_config.py`. Transactietest vereist gegenereerde JSON in
+`.tmp/map-output-live/`; geen algemene SD-profielintegratie gedaan.
+
+**Eerstvolgende stap:** bij een volgende afgesproken stilstaande proef ??n USB-
+reconnect controleren op nieuwe RECEIVER_VIDEO_BOOTSTRAP-PID, verse ready en
+fysiek beeld/guidance. Daarna slaap-/koude start en duurtest. Integreer de starter
+en exact beperkte configwijziging in SD-profielpackaging voordat een generiek
+SD-pakket als bijgewerkt wordt gepresenteerd. De unit is nu fysiek bevestigd;
+de algemene SD-profielgenerator bevat deze nieuwe launcher nog niet.
+
+
+- Aanvullend functienummer 46 DIRECT uit MU1417 bewezen: `AppConnectorNavi.updateDestinationInfo` bevat `getBAPFunctionPropertyFSG(46)` en maakt `DestinationInfo_Status`; serializer `functionId()` retourneert 46. Dump `build/destination-wire.javap.txt`, recoveryhelper `.tmp/recover-destination-wire.py`. Zie referentie-audit voor classhashes. Geen code/pakket/unit gewijzigd voor deze aanvullende verificatie.
+
+## ACTUEEL LIVE — kaartfix eveneens geïnstalleerd en actief (16 november 2026)
+
+Gebruiker vroeg expliciet ‘zet dat ook aan dan’. Map-pakket fc2342e3 op unit
+geïnstalleerd na verificatie originele window0cf0e784/capturec0208032/firmwarehash.
+MAP_LEASE_REPAIR_INSTALLED_NO_REBOOT, MAP_INSTALL_RC=0. Nieuw live windowhash:
+41414ee595c11b9417c76cea06a8209f4cceb02d395c61a546dd000b65705cce.
+Backup oude window onder controls-v15/before-map-lease-20261116/. Alleen deze
+native window/supervisor vervangen; capture/DIO/HMI/zoom/guidance niet vervangen.
+
+Zonder PCM-reboot alleen bestaande videosupervisor herstart via RAM-script
+`/ramdisk/cw-map-output-repair-20261116/restart-map.sh` (lokaal
+`.tmp/map-output-live/restart-map.sh`). Oude PID2977919 vóór TERM met pidin geverifieerd
+als juiste --run-tool, owner2842749. Nieuwe supervisor7172223, worker7217201;
+VIDEO_SUPERVISOR_STARTED en MAP_RESTART_RC=0. Script ksh-syntax0; unsetLD_PRELOAD
+met || : (oude QNX-valkuil), geen SIGKILL of mm-ipod/DIO-herstart.
+
+Runtimebewijs: `/ramdisk/cw-link-probe-20261102/cw-carplay-map-fix.log` bevat
+CARPLAY_ACTIVE display=1 context=70 size=800x480. Verse CWRD1-record epoch1192,
+timestamp459. GuidanceJava liep door (epoch301, route17242m/1380s, fase1);
+beide guidance-confirmedmarkeringen teruggelezen en aanwezig. Geen afzonderlijke
+fysieke gebruikersbevestiging NA deze kaartoverschakeling, geen duurtest gedaan.
+
+Kaartbinary is permanent op app-partitie geïnstalleerd en bestaande starter verwijst
+naar diezelfde tool; toekomstige starts/reconnects horen deze versie te gebruiken.
+Niet als fysiek bewezen koude-boot/reconnectfix voorstellen: dat moet nog getest.
+Restore naar oude window via restore.sh uit map-pakket; RAM-staging verdwijnt bij
+boot, maar app-backup blijft. Geen commit/push gedaan.
+
+## ACTUEEL LIVE — guidance-checklist permanent bevestigd (16 november 2026)
+
+- Gebruiker bevestigde fysiek ‘Kaart en routeaanwijzingen zichtbaar’ en vroeg daarna
+  expliciet ‘activeer maar permanent’. Geen volledige timing-/rotonde-/ETA-/arrivalproef
+  afleiden uit deze bevestiging: alleen basisweergave en actieve keten zijn gezien.
+- Live runtime vóór bevestiging: native/Java ontvangen Google Maps (niet Apple),
+  CWRG5-epochs37..46 doorlopend verwerkt, startmanoeuvre rawType11/cursor0 zonder
+  geldige manoeuvreafstand, route21km/1620s, lane-records2. Java apply zonder gemelde
+  fout. Verse kaartlease800x480. Gebruiker zag kaart EN guidance fysiek.
+- Native c917554d...701e2e9 en JAR a24db7e9...d30bf52 opnieuw op unit geverifieerd.
+  `guidance-native/confirmed` en `guidance-probe/confirmed` atomair geschreven en
+  teruggelezen (‘confirmed’), CONFIRM_SYNTAX_RC=0, CONFIRM_RC=0,
+  GUIDANCE_CHECKLIST_CONFIRMED. Script `.tmp/confirm-guidance-checklist.sh`, op unit
+  `/ramdisk/cw-confirm-guidance-checklist.sh`.
+- Daardoor geen one-boot-terugval meer: bestaande starters laden dezelfde versie
+  ook bij volgende boot/reconnect. Geen starter, kaart of zoom vervangen. Geen
+  tweede reboot gedaan voor bevestigen. Kaartreparatiepakket nog NIET geïnstalleerd;
+  bestaande windowhash0cf0e784 blijft uitgangspunt.
+- Vorige bestanden/markers behouden onder controls-v15/before-processing-checklist-20261116;
+  handmatig restore.sh uit testpakket beschikbaar. Native/JAR altijd samen herstellen.
+- Nog niet gecommit/pusht. Detailacceptatie (afstanden/pijlmomenten/rotonde/lane-layout,
+  ETA/tekstadres/stop/arrival) nog niet volledig fysiek bewezen, ondanks permanente
+  activering op uitdrukkelijk verzoek gebruiker.
+
+## Guidance-checklist geïnstalleerd als proef — 16 november 2026
+
+Gebruiker bevestigde expliciet: ‘Ja, installeer en herstart nu’. RAM-installer
+`/ramdisk/cw-guidance-checklist-20261116/install.sh` uitgevoerd op MMX:
+`GUIDANCE_PROCESSING_TRIAL_READY_NO_REBOOT`, `GUIDANCE_INSTALL_RC=0`.
+Live hashes teruggelezen: native c917554d...701e2e9 en JAR a24db7e9...d30bf52,
+exact volgens checklist-manifest. Backup van vorige bestanden/confirmed-markers
+onder `controls-v15/before-processing-checklist-20261116/`. Bestaande installscript
+zet pending one-boot; kaart/zoom/starters niet vervangen. RCC-herstart aangevraagd
+via bekende mib2_ioc_flash reboot. Boot-/runtime-/schermbewijs nog controleren;
+geen confirmed-markers schrijven zonder fysieke bevestiging. Gebruiker gevraagd
+na PCM-start CarPlay te verbinden en route in Apple Kaarten te starten.
+
+Runtime na reboot: Telnet opnieuw bereikbaar; Java-guidancelog op uptime32/37s
+wacht op `/ramdisk/cw-carplay-guidance.v1`. Java-probe is attempted, native nog
+pending (geen native log/telefoonsessie op dat meetmoment). Dit bewijst Java-start,
+geen werkende guidance. Gebruiker gevraagd CarPlay te verbinden en Apple-route te
+starten; wachten op antwoord/runtime. Geen extra reboot of rollback uitgevoerd.
+
+## Livevoorbereiding na ‘telnet is actief’ — 16 november 2026
+
+- RCC172.16.250.248 verbonden. Originele guidance-native791a8673 en JARfae18ec4 op unit teruggelezen; window0cf0e784 ongewijzigd. Beide guidance-confirmedmarkeringen aanwezig, checklist-backupmap bestaat nog niet.
+- Checklist-pakket6bbf751c gecontroleerd en alleen naar RAM gestaged onder `/ramdisk/cw-guidance-checklist-20261116/`: cw-rgi.so, PorscheCarPlayGuidance.experimental.jar, install.sh, restore.sh. Overdracht gecomprimeerd; hashes van uitgepakte payloads op unit exact c917554d/a24db7e9. Geen APP-bestanden vervangen, geen pendingmarker gezet, geen reboot.
+- Beide scripts op echte MMX-ksh syntactisch gecontroleerd zonder fout. Huidige RAM had nog geen ready-lease/RGI-log; geen actieve CarPlay-sessie veronderstellen.
+- Volgende stap: wachten op bevestiging dat auto stilstaat en gebruiker klaarzit. Dan pas de klaargezette guidance-installer uitvoeren; alleen bij GUIDANCE_PROCESSING_TRIAL_READY_NO_REBOOT + exit0 de afgesproken RCC-herstart. Kaartpakket NIET installeren. Daarna logs en echte routeguidance controleren; geen confirmed vóór fysieke bevestiging.
+
+## ACTUEEL — zeven verwerkingsstappen, ontvangstketen behouden (16 november 2026)
+
+Gebruiker corrigeerde expliciet: guidance-ontvangst/uitvoer WERKTE, alleen inhoud
+was fout. Geen vervanging van ontvangsthooks, abonnementen, starters, kaart of
+zoom. Daarom alleen verwerking aangepast en lokaal getest, GEEN unitactie.
+
+Volledig voortgangsdocument: `docs/GUIDANCE_CHECKLIST_PROGRESS.md` (zeven stappen,
+tests, artifacthashes, fysieke grenzen). Oude 68-regelige matrix is een auditstand;
+nieuwere verwerkingstatus staat in dit voortgangsdocument. Geen volledige port van
+alle optionele transport/menu/rendererfuncties claimen.
+
+- Stap1 bestaande cursor/prefetchbehoud + count-only clear zonder cachedataloss.
+- Stap2 junction_angles en exacte LuKa SideStreets-port, 29484 oraclecases.
+- Stap3 distance replay uitsluitend zelfde cursor/type, referentie actionblink
+  600ms100/0 laatste20% via BESTAANDE Java-poll, geen nieuwe thread.
+- Stap4 lane-eventcache32 met actieve eventbescherming, signed richtingen/countgate.
+- Stap5 volgendeweg/signpost via firmware `setTurnToInfo`, huidige straat behouden;
+  afzonderlijk bestaand DestinationInfo/BAP46, referentietekstnormalisatie.
+- Stap6 absolute ETA via originele HU-klok/UTC->local, snapshotleeftijd meenemen;
+  bestaand OEM12/24-uursgedrag. Firmware API-hashes/descriptors gecontroleerd.
+- Stap7 stop-/arrivaldeadlines ook zonder vervolgpacket in bestaande Java-readpoll.
+  Geen transporttimer of hook toegevoegd. Nieuwe route na arrival reset oude cache.
+
+Interne snapshot **CWRG5** (geen nieuw iAP2-protocol). Native en JAR SAMEN bijwerken;
+nieuwe Java leest ook CWRG1..4, oude Java kan5niet lezen. Bestaande field-based
+CRC/rename-keten behouden. Eigen guidanceclasses nu9 (4 hoofd/inner +5 sidestreet),
+naast bestaande enige OEM-hook ClusterService; geen OEM-dataklassen meegeleverd.
+
+Begrenzing gepind in `tests/fixtures/guidance-processing-boundary.json` (12files);
+test en --profilechecklist-builder falen bij wijziging ontvangst/map/startup/V14.
+Checkpoint `build/guidance-processing-checkpoint/before-checklist.zip`. Vóór deze
+opdracht bewaarde map- en guidance-ZIPs zijn bytegelijk gebleven.
+
+NIEUW, NIET LIVE: `build/guidance-processing-checklist-MU1417.zip`, SHA
+`6bbf751cae01f76b206cb289bf9a856925f253a9a328cd930b1ad48be9cf4402`.
+Native `c917554dc9027d8d0fc8044dbccf71c1ef7f5689966427b7bf122df86701e2e9`,
+JAR `a24db7e9851b736bc4a3def7081de8219ab4f6e9f15a23c6ed644e1b5d30bf52`.
+Bouwen met `python build-tools/build_guidance_patch.py --profile checklist` na
+native/Java-build/split; standaard presentation-profiel weigert nieuwe payloads
+om oude bewaarde presentatie-ZIP niet stil te overschrijven. Oude presentatie/map
+pakketten niet opnieuw met huidige broncode genereren alsof het dezelfde build is.
+
+Geslaagd: volledige native ASan/UBSan-suite, QNX-crossbuild, Java/bytecode/fixtures,
+echte nativeTLV->CWRG5->JavaOEMmock-keten, 4536mapper/29484sidestreetoraclecases,
+21Pythonchecks (1Windows-shellskip), ksh-syntax en echte install/restore-scripts op
+mockFS (guidance_package_transaction.py). Dit is GEEN fysieke schermacceptatie.
+
+Volgende stap is fysieke test, alleen na afgesproken moment. Geen unitverbinding,
+installatie, reboot, commit of push tijdens deze checklistuitwerking. Behoud oude
+workingflow; transport5203/backoff/takeover/extra menus/eigenrenderer NIET door deze
+opdracht laten terugkeren. Zie docs voor resterende referentieafwijkingen.
+
+## Systematische guidance-portaudit (16 november 2026)
+
+Op gebruikersverzoek alle guidancefunctiegroepen naast vastgezette LuKa-referentie
+(21f5016) en aanvullende Fifthbro-bron (c737650) gelegd. Resultaat:
+`docs/GUIDANCE_PORT_MATRIX.md` met concrete bron-/functieverwijzingen en statussen
+Ja/Deels/Nee/Anders/Onbewezen. Audit wijzigt geen broncode, pakketten of unit.
+Geen nieuwe tests voor deze read-only vergelijking uitgevoerd.
+
+Belangrijk: vorige ‘4536 vectoren’-claim dekt alleen type/richtingmapper,
+NIET volledige port. Gevonden expliciete gaten: manoeuvre-junction_angles en
+BAP-sideStreets (nu leeg), actionblink, absolute ETA/timezone, zichtbare
+volgendeweg/exittekst (wel opgeslagen), count-/maneuver_state/componentvelden,
+protocolstop5203 (parser heeft branch maar hook routeert hem niet en zendt geen
+stop), beperkte bron/generatie/teardownkoppeling en geen autonome stoptimer.
+Oorspronkelijke synchrone RX-send/2s-retry blijft anders dan referentie.
+Lanegeometrie deels geport maar niet alle completeness/fallbacksemantiek bewezen.
+
+`GUIDANCE_REFERENCE_AUDIT.md` stale claim van lifecycle-worker/mutex gecorrigeerd
+naar huidige passieve RX-tick. Bestemmingsadres/Fct46 blijft lokaal geïmplementeerd;
+fysieke plek bij aankomstsymbool onbevestigd. Geef geen volledige-pariteitsclaim
+of de indruk dat de matrix een fysieke functietest is.
+
+## Nieuwste referentievergelijking — bestemmingsadres bij aankomst (16 november 2026)
+
+- Gebruiker wees op adres naast aankomstsymbool en eiste directe vergelijking met referentie. Niet opnieuw een mogelijke aparte tekstpopup als vervanging voorstellen. Er bleek een concrete ontbrekende aanroep, niet een onbekend protocol.
+- Vastgestelde referentie: `.tmp/mib2q-carplay-rgi/java_patch/com/luka/carplay/rgd/BAPBridge.java`, blok 9 (FctID 46, rond regel 1195): `new CombiBAPNaviDestination("", "", limitUtf8(destination,50), "", "", "", "")`, verpakken in `CombiBAPDestinationInfo`, doorgeven met `updateDestinationInfo`. Label in dezelfde constructorpositie overgenomen; geen zelfverzonnen adresparser. Broncommit blijft `21f501611b0b28dbdeb2849e8443ce90ec9517ff`.
+- Exacte MU1417 firmware bevestigt `CombiBAPListener.setDestinationInfo(CombiBAPDestinationInfo)`; die bewaart destInfo en roept bestaande `updateDestinationInfo()` aan. Beide zeven-string/data-wrapperconstructors uit `rom.classes` hersteld en met javap gecontroleerd. Output `build/destination-api.javap.txt`.
+- `PorscheRouteGuidance.update` publiceert nu aparte OEM DestinationInfo, ook bij aankomst. `clear` wist dit veld afzonderlijk met retry bij OEM-fout. Huidige-positietekst blijft onaangetast. UTF-8-limiet 50 bytes en surrogate-paargrens volgen referentie. Geen derdeparty renderer of voertuigvreemde HMI-klassen geïnstalleerd.
+- Belangrijke bewuste afwijking: LuKa gebruikt elders CurrentPositionInfo/Fct19 voor routegerelateerde tekst en houdt Fct20 leeg. Dat NIET integraal overgenomen: gebruiker had expliciet foutieve huidige positie door volgende straat gemeld. Bestemming loopt hier via exact ondersteunde DestinationInfo/Fct46, huidige straat blijft huidige straat. Fysieke plaats/acceptatie van het adres naast aankomsticoon nog NIET bevestigd.
+- Buildinput toegevoegd: `build/porsche-destination-api.jar`, aangemaakt met `python build-tools/recover_destination_api.py --recovery-root "D:/Software Development/Github/mqb-backend-private/.tmp/porsche-carplay-mu1417"`. Vereist eerder beschikbare deps/jxe2jar/rom.classes, downloadt niets. `build.py --destination-jar` optioneel met deze default. Beide classhashes gepind en constructors/aanroepdescriptor in `BuildPorscheHooks.checkApi` geverifieerd. OEM-dataklassen zijn uitsluitend build-/testinput; NIET meegeleverd in guidance-JAR.
+- Javafixture draait tegen de daadwerkelijk herstelde bestemmingdataklassen: normaal label, adres tijdens RS=2, huidige positie ongewijzigd, 50 UTF-8-bytes met accenten en surrogate-paar, null/lege bestemming, wissen en retry bij beëindiging getest. Java/legacy-bytecode/cluster/zoomfixtures en 20 Pythonchecks geslaagd (1 Windows-shellskip).
+- Guidance-JAR nu `a5176788f8bc3f9bc8a868c5b8f23723395757203da43b8faf102fc53641fccd`. Bijgewerkt `build/guidance-presentation-MU1417.zip`: SHA `29543da0ed7c14c8b55801fa8a175b07523ddbcb188bcb3000a22c81bf913e8c`. Native `1a75449ff62787599fdfd2a4afa517b3e4dd7779770cd5e1430333cf306f2b65` en los kaartpakket onveranderd. Oudere package-/JARhashes hieronder zijn historisch.
+- Nog steeds GEEN liveactie/installatie/reboot/commit/push. Alleen lokale voorbereiding. Geen claim dat fysieke aankomstweergave is bewezen.
+
+## Nieuwste lokale aanvulling — kaartuitvoer en aankomst (16 november 2026)
+
+- Gebruiker vraagt na bovenstaande stop uitsluitend voorbereiding van een oplossing; daarna ook de kaartuitvoer oplossen. GEEN nieuwe toestemming voor live installeren/reboot gevraagd of afgeleid. Tijdens deze aanvulling geen unitverbinding gebruikt.
+- Lokale kaartcorrectie in `native/porsche_geometry.c/.h`: `cw_geometry_follow_source` leidt een nieuwe bronobservatie af uit eerder gevalideerde displaygeometrie, uitsluitend bij dezelfde PID met vers gecontroleerde bronlease. Originele HMI-record, CRC en TTL blijven intact; expliciet inactieve geometrie wordt niet heractiveerd.
+- `native/porsche_session.c/.h`: `cw_session_observe_frame` gebruikt de werkelijke producer-timestamp van de CRC-gecontroleerde pixellease na een blokkerende displayquery. Een herlezing van dezelfde lease verlengt de levensduur niet. Epoch, afmetingen, toekomst/veroudering en bruikbaar beeld blijven gecontroleerd. Ook eerste bruikbare beelden na een lange preflight kunnen activeren zonder willekeurige restart.
+- `native/porsche_unit.c`: cached geometrie wordt nu werkelijk bronvers vernieuwd voordat de sessiecontrole haar gebruikt; na preflight opnieuw dezelfde bron/afmetingen controleren; reeds actieve sessie eerst bijwerken met verse pixels; na langzame outputquery nieuwste VIDEO_READY opnieuw lezen en bron verifiëren.
+- Extra oorzaak van lease-uitval: DisplayManager-query mocht 4s duren terwijl HMI READY na 3s verloopt. `native/porsche_dm.c/.h` biedt absolute, gedeelde deadlines (`cw_dm_query_until`, `cw_dm_switch_until`); actieve displaycontrole deelt de bestaande 1s-pollcyclus. Normale koude preflight behoudt gewone 4s-queryallowance. Geen heartbeat-/pixel-TTL verhoogd. Werkende capture/launchers niet veranderd in het kaartpakket.
+- Tests: native ASan/UBSan-suite geslaagd, sessie nu 178 checks; nieuwe `tests/test_dm_deadline.c` met echt vertraagde mocksubprocess; QNX ARM-crossbuild geslaagd. 20 relevante Python-tests passed, 1 Windows-shelltest skipped. QNX-toolchain-ksh syntax van kaartinstallatie/herstel geslaagd. `tests/map_package_transaction.py` voert echte pakketinstallatie en restore tegen geïsoleerde mockunit uit: corrupte payload geweigerd vóór mount, backup/restore en RO-remount geslaagd, capture ongewijzigd. Dit is geen fysieke QNX- of schermvalidatie.
+- Nieuw afzonderlijk pakket: `build/map-output-repair-MU1417.zip`, SHA256 `fc2342e3fa679e220a2d781f71dd2cc61ebfa01f130e6e7a1ca44f4a0d2c886b`, gebouwd door `build-tools/build_map_output_patch.py`. Enige binaire payload `cw-window-candidate`, SHA `41414ee595c11b9417c76cea06a8209f4cceb02d395c61a546dd000b65705cce`. Vereist exacte teruggezette window/capture/HMI-hashes. Backup/restore inbegrepen; geen automatische herstart. Native vervanging is NIET one-boot; gebruik restore.sh bij mislukte fysieke proef. Pakket is NIET geïnstalleerd.
+- Guidancepakket en hashes in volgend blok blijven ongewijzigd. De parser bevat rotondehoek/verkeerszijde-mapping, 4536 onafhankelijke referentiegevallen incl. negatieve hoeken. Correcte fysieke pijlpositie nog onbevestigd.
+- Aankomst precies formuleren: expliciet iOS RS=2 publiceert main_element=3, geen lanes, resterende tijd/afstand nul; Java gebruikt de bestaande BAP-manoeuvredescriptor en wist daarna guidance. Prefetched aankomst op >70m wordt niet als bereikt getoond. Er is GEEN aangetoonde aparte OEM-tekstmelding ‘Bestemming bereikt’; geen tekstpopup of spraakbericht beloofd/geïmplementeerd. Timing zonder RX-traffic blijft eerdere freshnessbeperking.
+- Resterend: geïsoleerde fysieke validatie van elk pakket na nieuwe gebruikersopdracht. Niet stellen dat alle opstart-/USB/contextproblemen definitief opgelost zijn: alleen bovenstaande fouten zijn lokaal gereproduceerd en gecorrigeerd. Eerdere experimentele capture/supervisor-startcode nog dirty en buiten beide pakketten.
+
+## ACTUEEL — gebruiker heeft liveproeven gestopt; alleen lokaal verder (16 november 2026)
+
+Dit blok heeft voorrang op de historische proefstatus hieronder.
+
+- Gebruiker corrigeert terecht de scope: guidance werkte fysiek; onjuiste manoeuvre/timing/positie was het probleem. De nieuwe ontvangst-/TX-hook was een regressie en mag niet als bewezen reparatie opnieuw worden geactiveerd.
+- Laatste TX/video-proef: native `7b1384d3b384a5a54cb213948bbd3f6204f4114c0b3545227cfd9dd914d17c21` stuurde 5200 met rc=0, maar mm-ipod startte herhaaldelijk opnieuw (o.a. uptime 63, 68, 74, 81, 85, 90, 110, 127); geen bruikbare guidance en geen ready-lease. Gebruiker bevestigde dat ook CarPlay op het centrale PCM ontbrak. Rc=0 bewijst dus GEEN werkende keten. Precieze oorzaak niet vastgesteld; eerdere ACK-deadlockhypothese verklaart niet alle uitval.
+- Eerst native trial uitgeschakeld en mm-ipod gestopt. Daarna herstel uitgevoerd, nog voordat de gebruikersinstructie ‘laat het maar staan’ binnenkwam. Geen reboot of andere unitactie meer na die instructie. Laat de auto nu met rust; nieuwe lokale kandidaat NIET installeren zonder nieuwe gebruikersopdracht.
+- Op schijf teruggezet en hashes teruggelezen: native `791a8673bf198599fd261d6cdfd85f256bdc27537a072b045ee101e57e77d31e`; guidance-JAR `fae18ec437ea7b479777859df649c28a8becfdc7b33b4cb2c7e1e385aaeeadbd`; capture `c020803207a59ac438e2ffe526110ffcb7294cac86236fcf1cb96da9eca3f847`; window `0cf0e784063396004f65d71195649815e467f197a1a9dc2aeb66506c4d412afa`. Originele native/java confirmed-markers uit backup hersteld, pending en RAM-trial verwijderd. `/mnt/app` read-only. Marker `PREVIOUS_GUIDANCE_RESTORED`. Fysieke werking na dit herstel en vervanging van de reeds in geheugen geladen JAR zijn NIET gecontroleerd; daarvoor is later een afgesproken herstart nodig.
+- Backups: `controls-v15/guidance-before-reference-20261116` bevat oorspronkelijke native/JAR/markers; `controls-v15/before-video-tx-repair-20261116` bevat oorspronkelijke video/capture en de EERSTE mislukte native. Die laatste cw-rgi.so is GEEN werkende guidancebaseline. Herstelscript lokaal `.tmp/restore-previous-guidance.sh`.
+
+### Klaargezette, smallere kandidaat — nog NIET op de auto
+
+- `native/porsche_rgi_hook.c` is teruggebracht tot exact transport van commit `288175f`, met slechts passieve `cw_rgi_tick` op bestaande RX-traffic toegevoegd. Geen nieuwe TX-callback, mutex, timerthread of constructorthread. De verworpen proefcode/fixture is lokaal bewaard onder `.tmp/rejected-tx-trial-20261116/`.
+- Parser `native/porsche_rgi.c/.h` en guidance-Java behouden de referentiecorrecties voor actuele cursor, mapping, afstand, rijstroken en lifecycle. CWRG4 vereist de bijpassende JAR. Deze selectie-/presentatiecorrecties zijn lokaal getest, NIET fysiek bevestigd.
+- Belangrijke grens: oorspronkelijke synchrone RX-send blijft bestaan. Terugkeer naar werkende transportcode is geen bewijs dat dit pad onder alle omstandigheden veilig is. Stop/aankomst-timers verlopen passief op RX-traffic; zonder verkeer geldt Java freshness-fallback. Geen nieuwe thread om precieze timers af te dwingen.
+- Buildscript `build-tools/build_guidance_patch.py` levert `build/guidance-presentation-MU1417.zip` (SHA256 `bfd1d221fc717dbd429c332f7f270bf3df49cc53c0a8dc4c0c3089e523aa32aa`). Alleen `cw-rgi.so`, guidance-JAR, manifest, installatie/herstel en LEESMIJ. Geen display-, zoom-, menu-, configuratie- of launcherpayload. Geen automatische reboot.
+- Kandidaat native SHA `1a75449ff62787599fdfd2a4afa517b3e4dd7779770cd5e1430333cf306f2b65`; JAR `8b82136fdc41618f18579d5a6264aae1661ab36527e0c4ae3331b941d3d9b4f6`.
+- Installer accepteert uitsluitend exacte baseline native/JAR plus confirmed-markers, maakt backup, verifieert staging, zet one-boot pending en remount RO. Scripts met QNX-toolchain-ksh syntactisch gecontroleerd. Transactionele foutpaden niet op echte QNX geïnjecteerd.
+- Validatie: volledige native ASan/UBSan-suite incl. 4536 onafhankelijke mappinggevallen, lifecycle en baseline packetownership; QNX-crossbuild; Java-build/bytecode/fixtures en split; 20 relevante Python-tests geslaagd, 1 Windows shelltest skipped (eerder afzonderlijk op Linux uitgevoerd). ZIP-integriteit en payloadhashes gecontroleerd. Dit bewijst geen fysieke acceptatie.
+- Overige eerdere video/supervisorwijzigingen zijn nog dirty en NIET onderdeel van dit pakket. Brede SD-builder niet gebruiken alsof die alleen de guidancewijziging bevat. Er zijn GEEN nieuwe commits/pushes.
+
+### Eerstvolgende stap
+
+1. Nu uitsluitend lokale review/voorbereiding; geen unitverbinding of reboot nodig.
+2. Bij nieuwe toestemming eerst de herstelde baseline fysiek bevestigen na afgesproken boot. Niet combineren met nieuwe video-/zoom-/opstartwijzigingen.
+3. Dan uitsluitend guidance-pakket als one-boot proef: centrale CarPlay, tellerkaart, actuele manoeuvre versus iPhone, afstand, rijstroken/positie, appwissel, stoppen/aankomst controleren. Een verzonden 5200 en geslaagde tests niet als gebruikersbevestiging voorstellen.
+4. Bij uitval direct de twee oorspronkelijke guidancebestanden herstellen, geen nieuwe transportproef tijdens dezelfde praktijktest.
+
+## KRITIEK — laatste liveproef teruggetrokken; CarPlay fysiek hersteld
+
+- Gebruiker bevestigde CarPlay zichtbaar en USB opnieuw verbonden/route gestart, maar geen nieuwe guidance. Na reconnectcorrectie bleef native 0x5200 mislukken en gebruiker meldde vervolgens CarPlay niet werkend.
+- Concrete firmwarebevinding: MU1417 `link_send_raw_message` VA `0x113a8`, grootte `0x11c`, roept `link_send_pkt` op `0x1105c` aan; daarin staat `link_wait` (onder meer call op `0x112ac`). Onze `receive_hook` roept die synchroon aan vanuit de ontvangstthread en nu ook onder state_lock. Dat kan de ontvangst van de ACK en lifecycle-tick blokkeren. Live: IdentifyAccepted, aanvraag wel op iAP2-wire (`5200`), circa 16s later request failed en herhaalde ontvangerstarts. NIET als enkel foutieve succeslogging afdoen. ACK-wachtpad is bewezen, precieze volledige watchdog/crashketen nog niet vastgelegd.
+- **NIET opnieuw de huidige native build activeren.** De geslaagde parser-/mapping-/buildtests bewezen de echte transporthandshake niet. Eerst een correct asynchroon verzendpad uitwerken met bewezen contextlevensduur en teardown (geen losse thread met een ongecontroleerde, mogelijk vrijgegeven link-pointer). Geen nieuwe pointer-/vtable-aanname op de live auto.
+- Herstel uitgevoerd: `/ramdisk/cw-guidance-native-trial` en pending/confirmed voor guidance-native en guidance-probe verwijderd, RCC herstart. Attempted-markers blijven als historie; zonder RAM-trial/pending/confirmed laden wrappers de nieuwe guidance niet. Native/JAR-bestanden blijven aanwezig maar zijn UIT. Zoom/video/bestaande starters behouden; native proefstarter `1b5c...` blijft geinstalleerd maar zonder ticket/marker inactief.
+- **Gebruiker bevestigt na deze herstart: 'Ja, CarPlay werkt weer'.** Dat is het nieuwste fysieke bewijs. Nieuwe guidance dus NIET live/werkend/permanent bevestigd voorstellen. Alle eerdere 'geladen' en installed-hashes hieronder zijn historie, geen geslaagde functieproef.
+- Eerste vervolg: transportverzending losmaken van receive_hook, context-lifetime/queue/ACK/reconnect aantoonbaar testen, dan pas nieuwe one-boot proef aanbieden. Ook kaart/telleracceptatie, fases, stoppen/aankomst en pijlpositie blijven fysiek onbevestigd voor de nieuwe versie. Geen extra live wijzigingen gedaan na gebruikersbevestiging van herstel.
+
+## Guidancelevenscyclus 16 november — nieuwste lokale status, NIET live
+
+### Installatie op unit 16 november (nieuwste status)
+
+- Gebruiker autoriseerde live zetten. Telnet `172.16.250.248` bereikbaar; bronhashes native `791a8673bf198599fd261d6cdfd85f256bdc27537a072b045ee101e57e77d31e`, guidance-JAR `fae18ec437ea7b479777859df649c28a8becfdc7b33b4cb2c7e1e385aaeeadbd`, HMI-starter `93d7fed1102c20727a24acefbf43380001f5c9ef32319800bcbe74206d13e59e` en OEM mm-ipod `d5af4a342705bd7ac3498a080e24faf5702c6fc2960895f58aa2800268126464` geverifieerd.
+- Nieuwe native `0a2cc0578270aa5f43405e011c8a60b1494b055963ddbaba0700886522f47042` en JAR `8b82136fdc41618f18579d5a6264aae1661ab36527e0c4ae3331b941d3d9b4f6` transactioneel geinstalleerd (`GUIDANCE_REFERENCE_READY`, INSTALL_RC=0). Backupmap `/mnt/app/eso/hmi/connectwow-carplay/controls-v15/guidance-before-reference-20261116/` bevat geverifieerde vorige native/JAR en `native.confirmed`/`java.confirmed`. Installatiescript lokaal `.tmp/install-guidance-reference-20261116.sh`, op unit `/ramdisk/cw-install-guidance-reference-20261116.sh`.
+- Veilige eerste activatie: confirmed van guidance-native/guidance-probe vervangen door pending, zodat bestaande wrappers de proef eenmalig laden; volgende boot valt zonder nieuwe bevestiging terug naar OEM-guidance. Zoom, display, starters en serviceproviders niet gewijzigd. `/mnt/app` na succesvolle installatie read-only. Niet als permanent bevestigd voorstellen voordat functieproef slaagt.
+- RCC-herstart aangevraagd via `on -f rcc /usr/apps/mib2_ioc_flash reboot`; runtime/bootbewijs hieronder aanvullen. SD-pakket nog niet bijgewerkt. Geen commit/push van deze nieuwe lokale wijzigingen.
+- Runtime na deze herstart: HMI/J9 draait met de losse zoom- en nieuwe guidance-JAR op bootclasspath; native mm-ipod logt `Porsche MU1417 mm-ipod RGI table preload active`, `dispatch tables active` en `iOS IdentificationAccepted` op uptime 50/51. CWRG4 disconnect/inactieve state is gepubliceerd. Beide pending-tickets zijn consumed (alleen attempted aanwezig). Dat bewijst laden, geen werkende routeguidance.
+- Daarna op uptime 68 twee `0x5200 route-guidance request failed`; iAP2-log eindigt met `Device removed` en interface disabled. Geen verse video/CarPlay-ready-lease. Java meldt vervolgens stale guidance state (verwachte freshness-fallback bij verdwenen telefoonverbinding). Geen bewijs dat dit een nieuwe codefout is; niet als geslaagde routeproef presenteren. Gebruiker gevraagd of CarPlay zichtbaar is, en gemeld dat opnieuw verbinden nodig is. Niet automatisch confirmed schrijven; nieuwe routeproef is nog open.
+- Gebruiker bevestigt daarna CarPlay zichtbaar. Hercontrole: mm-ipod heeft nieuwe PID 5218428 (eerste PID 2162810); `pidin -p mm-ipod mem | grep cw-rgi` leeg, terwijl iAP2 weer live verkeer toont. Concrete oorzaak: native proef-ticket was per PROCES verbruikt, USB-reconnect startte stock zonder preload. Deze proefbeveiliging was dus onvoldoende voor reconnecttests; niet verwarren met een parser-/guidancemappingfout.
+- Hersteld en live: `unit/mm_ipod_rgi.sh` houdt een trial voor EEN PCM-BOOT via `/ramdisk/cw-guidance-native-trial` plus persist `attempted`. USB-herstarts laden daardoor dezelfde native proef; volgende volledige boot wist RAM en valt zonder confirmed terug naar OEM. Bevestigde modus ongewijzigd. Nieuwe wrapper SHA `1b5c95263ce61b96c96d269146a9ac85e4bd2bc3e7ad8f712eb346aaff522438`, originele wrapper `24ff9dcf94669d36978877c1265bd7b1c5f885ccf34b919fed43999efd0e43c3` bewaard als `guidance-before-reference-20261116/mm-ipod.wrapper` onder controls-root. Installatie `GUIDANCE_BOOT_TRIAL_READY`, exit0, QNX-syntaxcontrole geslaagd. Alleen starter aangepast; native/JAR-hashes blijven gelijk. Bestaande draaiende stockontvanger niet gekilld.
+- Werkelijke Linux-shellfixture getest voor eerste start, reconnect, RAM-wis/rebootterugval en confirmed. Host Windows pytest: twee passed, een shelltest bewust skipped; dezelfde shellfunctie apart met stdlib-runner in Linux uitgevoerd en geslaagd. Gebruiker gevraagd in stilstand USB opnieuw te verbinden en route te starten. Na die actie logs/cwrG4 en Java apply controleren. Nog geen fysieke bevestiging en geen confirmed-markers schrijven.
+- Snellere overdracht: RCC heeft werkende `gzip -dc`. JAR (75162 bytes) gecomprimeerd als 23153 bytes gestaged en op RCC naar `/net/mmx/ramdisk/...jar` uitgepakt; oorspronkelijke SHA daarna geverifieerd. Eerste ongecomprimeerde JAR-client afgebroken voordat installatie; geen permanente bestanden daardoor geraakt. Native payload 32238 bytes volledig geverifieerd. Vermijd opnieuw ongecomprimeerde grote JAR-overdracht wanneer gzip beschikbaar is.
+
+- Gebruiker vroeg de volledige afhandeling te maken: stoppen, aankomst, herberekenen, appwissel en disconnect. Native `cw_rgi_consume_at`, `cw_rgi_tick` en `cw_rgi_end` maken de overgangen expliciet en deterministisch testbaar. Referentie `rgd_hook.c` gebruikt 800 ms grace voor gewone route_state=0, geen zero-timeout na REROUTING(5), en hard-clear bij disconnect/source_supports_rg=0. Die semantiek is overgenomen; nieuwe actieve data annuleert de pending reset en begint met schone routecaches.
+- Native aankomst: expliciet iOS route_state=2 zet ARRIVED, verbergt lanes/actieafstand en wist resterende afstand/tijd; non-blocking 5s deadline volgens Fifthbro `destinationDisplayDuration=5000`. Herhaalde ARRIVED of aansluitende state=0 verlengt/verkort die periode niet. Na afloop geen heractivering door herhaalde late ARRIVED of gecachte payloads; nieuwe route_state=1 begint schoon. Nieuwe appbron annuleert de oude aankomstdeadline. Java toont een vooruitgestuurde arrival-manoeuvre niet als bereikt op 900m: Fifthbro parseAndApply hanteert laatste 70m of expliciet RS=2.
+- In mm-ipod verzorgt een kleine lifecycle-worker deadline-expiratie zonder vervolgpacket. Mutex beschermt dezelfde state tegen receive/timer/Identify. Worker vernieuwt NOOIT de ontvangstlease: hard geterminerd proces of stilgevallen verbinding blijft onder de bestaande freshness-fallback vallen. Nieuwe Identify, afwijzing en unload publiceren een schone disconnect-state. SIGKILL/ontbrekend fysiek disconnect-event kan alleen via bestaande lease/read-grace worden ontdekt; geen onmiddellijke detectieclaim.
+- Java-clear probeert ieder OEM-veld afzonderlijk; een mislukking houdt retry pending voor de volgende poll. Geen tweede Java-aankomsthold: dat kon stoppen/disconnect ten onrechte uitstellen. Originele huidige-positietekst wordt niet leeggeschreven; route-afstand, tijd, descriptor, lanes, GAL, rgActive en manoeuvrefase worden wel gereset.
+- NIEUW wireformaat **CWRG4** (CWRG3 plus route_state/end_reason). Alleen nieuwe native + nieuwe guidance-JAR samen installeren. Java blijft CWRG1/2/3 lezen. Huidige lokale hashes: native `0a2cc0578270aa5f43405e011c8a60b1494b055963ddbaba0700886522f47042`; guidance-JAR `8b82136fdc41618f18579d5a6264aae1661ab36527e0c4ae3331b941d3d9b4f6`. Display/zoom-JARs ongewijzigd. Oude artifactclaims hieronder zijn historisch.
+- Validatie: volledige native ASan/UBSan-suite incl. `tests/test_rgi_lifecycle.c` en 4536 mapper-oraclecases geslaagd; extra lifecyclefixture met appwissel geslaagd; Java/OEM/legacy-build en alle buildfixtures geslaagd, incl. aankomstafstand, expliciete RS=2, CWRG4 en foutinjectie/retry van clear; QNX-crossbuild en 10 gerichte Python-tests geslaagd. Geen unit/SD-installatie, commit of push gedaan. Fysieke proef blijft nodig voor daadwerkelijke telleracceptatie, aankomst en stop/herberekening op beide apps.
+
+## Lokale guidancecorrectie 15 november — nog niet op de unit
+
+### Volledige vervolgcontrole (nieuwste lokale status)
+
+Lees `GUIDANCE_REFERENCE_AUDIT.md` voor bronrevisie, gecontroleerde keten,
+protocol en de concrete fysieke test. Onderstaande eerste bullets beschrijven
+de eerdere, kleinere correctie; dit vervolg vervangt die lokale status.
+
+- Ook hersteld: cache met volledige uint16-manoeuvre-ID's (geen limiet op route-ID 63), behoud van gedeeltelijke updates, actuele afstandscursor, afzonderlijke lane-eventcache/selectie, signed hoeken naar BAP-richtingscodes en extra lane-richtingen. Vooruitgestuurde events wijzigen de actuele aanwijzing niet. Mapperuitvoer komt overeen met 4.536 vectoren uit de vastgezette referentie; fixture en herbouwtool staan in de repository.
+- CWRG3 bevat type, staplengte, afstandsgeldigheid en cursor. Java gebruikt de bestaande OEM `updateBapManeuverState` voor Follow/Prepare/Action. Drempels en bargraph komen uit de referentie (1500/3000 m, maximaal 15% actiezone). Default verre aanwijzing blijft referentie Next; een pijl op 900 m is dus niet automatisch fout, maar is Prepare en geen Action. Geen zelfbedachte wachttijd tussen manoeuvres. Rijstroken blijven afhankelijk van expliciete iOS-zichtbaarheid.
+- Huidige artifacts (lokaal, NIET live): native RGI `562f4b634a0dfe11bd738c9bd92ded175f84a234a0ba32fff658b3cc0d92e830`; guidance-JAR `a2155fb1630ecf635e3bf7e993f243bff7a3d7c009490fd7937547f1fc7b25b3`. Samen installeren: oude Java kent CWRG3 niet. Display- en zoom-JARs zijn inhoudelijk ongewijzigd. Niet naar unit/SD gedeployed, niet gecommit of gepusht.
+- Geslaagd: volledige native suite met ASan/UBSan (inclusief bestaande display/video/listenertests), 4.536 referentievectoren, Java/legacy/notification/cluster/zoom/guidance-fixtures inclusief fase- en lanecontroles, volledige QNX-crossbuild en 10 gerichte Python-tests. Geen fysieke timing/positieclaim en geen volledige Python-suiteclaim. Volgende stap is gerichte fysieke guidanceproef met beide apps; kaartweergave en opstart niet wijzigen.
+- Extra gebruikersinstructie: timing EN pijlpositie uit de referenties halen. Referentie `BAPBridge.sendManeuvers` heeft geen X/Y-velden; de eigen OpenGL-renderer heeft die wel (`maneuver_render/render.c`), maar bestuurt niet de originele Porsche-pijl. Geen renderer-pixeloffsets in BAP kopieren. Nieuwe regressie `test_app_independent_presentation` vergelijkt alle uitvoerstaat voor dezelfde Apple/Google-manoeuvre, afstand en lanes; alleen bronlabel mag verschillen. Zie de aparte sectie in `GUIDANCE_REFERENCE_AUDIT.md`. Productieartifacts ongewijzigd sinds bovenstaande hashes; geen nieuwe deployment.
+
+- Gebruiker meldt fysiek snel wisselende manoeuvrepijlen op onjuiste momenten en nog steeds een verschoven manoeuvrepijl bij Apple Kaarten. Geen actuele unitlogs opgehaald; oorzaakpositie nog niet bewezen.
+- Bevestigde codefout in `native/porsche_rgi.c`: 0x5201 TLV 0x0d is een reeks uint16-manoeuvre-ID's. Bij meerdere entries las onze code `be16(v+2)` (tweede entry) in plaats van de eerste. De oude C-test verwachtte dezelfde fout. Referentie lokaal `.tmp/mib2q-carplay-rgi`, origin `https://github.com/luka-dev/mib2q-carplay-rgi.git`, commit `21f501611b0b28dbdeb2849e8443ce90ec9517ff`: `hook/routeguidance/rgd_tlv.c` parseert iedere twee bytes als ID; `java_patch/com/luka/carplay/rgd/ManeuverPresentation.java` currentSlot gebruikt `maneuverOrder[0]`. `rgd_hook.c` bewaart prefetch en promoveert geen toekomstige entry wanneer de huidige nog ontbreekt.
+- Lokaal gecorrigeerd: expliciete cursorselectie, eerste ID, 0x5202 alleen cache vullen (geen routeactivatie), ontbrekende actuele descriptor wist oude pijl en kiest geen toekomstige; lege lijst wist cursor, ontbrekende lijst behoudt cursor, oneven lijstlengte wordt voor mutatie geweigerd. Native log voegt cursor/selected toe. Nog bestaande beperking: directe manoeuvrecache-ID's 0..63, geen referentie-slotmapping voor hogere IDs; hogere actuele ID wist oude pijl maar kan geen descriptor tonen. Niet claimen dat de volledige referentieport gereed is.
+- Bevestigde afwijking rijstrookzichtbaarheid: Java gebruikte `laneVisibility != 1`, dus onbekend=0 toonde reeds gecachte lanes. Referentie `BAPBridge.laneGuidanceVisible` vereist expliciet iOS showing=1. Onze wirewaarden zijn 0=onbekend,1=verborgen,2=zichtbaar; lokaal nu alleen `==2`. Dit kan verkeerde tellerindeling verklaren, maar fysieke pijlpositie nog niet bevestigd. Geen x/y-patch of eigen tijdschema toegevoegd. Nog aandachtspunt: lane-eventcache/cursor is niet volledig zoals referentie geport; huidige native parser bewaart laatste laneset.
+- Validatie: native C-fixture met ASan/UBSan geslaagd (eerste/tweede entry, prefetch, ontbrekend huidig, lege/malformed lijst, geen heractivering gestopte route); 8 gerichte Python-tests geslaagd; volledige QNX-crossbuild geslaagd; Java-build/bytecodefixtures inclusief expliciete lanevisibility 0/1/2 geslaagd, plus bestaande notification/cluster/zoom-fixtures. Geen volledige Python-suite of fysieke test geclaimd.
+- Nieuwe lokale artifacts: native RGI `34d2fa6658ffed185778524c3704e5a840988ed71d37e48a0abdcd68c9c45234`, guidance-JAR `8411e165c7c5db8ae461ce2604d38e5a45d517a56d9889d18c377ce13ea63fdf`. Andere gegenereerde split-JARs niet installeren: alleen guidance is gewijzigd. Niet gedeployed, niet gecommit/gepusht; live blijft de versie van 9 november. Volgende stap is gerichte replay/liveproef van actuele cursor + afstand, gevolgd door lane-eventselectie tegen dezelfde referentie; behoud kaart/zoom/startup.
 
 ## LIVE guidanceproef 9 november — actuele prioriteit, vervangt oudere gereedclaims
 

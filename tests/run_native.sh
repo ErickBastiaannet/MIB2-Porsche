@@ -6,7 +6,19 @@ work=$(mktemp -d /tmp/porsche-carplay-test-XXXXXX)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 flags='-std=gnu99 -Wall -Wextra -Werror -fno-pie -no-pie -fsanitize=address,undefined -g'
 cc $flags -I"$root/native" "$root/native/porsche_rgi.c" "$root/tests/test_rgi.c" -o "$work/rgi"
+cc $flags -I"$root/native" "$root/native/porsche_rgi.c" "$root/tests/test_guidance_processing.c" -o "$work/guidance-processing"
+"$work/guidance-processing" "$root/build/guidance-processing-native.state"
 "$work/rgi"
+cc $flags -I"$root/native" "$root/native/porsche_rgi.c" "$root/tests/test_rgi_lifecycle.c" -o "$work/rgi-lifecycle"
+"$work/rgi-lifecycle"
+cc $flags -Wno-unused-function -I"$root/native" "$root/native/porsche_rgi.c" "$root/tests/test_rgi_transport.c" -ldl -pthread -o "$work/rgi-transport"
+"$work/rgi-transport"
+cc -std=gnu99 -Wall -Wextra -Werror "$root/tests/fake_dmdt.c" -o "$work/fake-dmdt"
+cc $flags -DCW_DMDT='"'"$work/fake-dmdt"'"' -I"$root/native" \
+  "$root/native/porsche_dm.c" "$root/native/porsche_sha256.c" "$root/tests/test_dm_deadline.c" -o "$work/dm-deadline"
+"$work/dm-deadline" "$work"
+cc $flags -I"$root/native" "$root/tests/test_rgi_mapping.c" -o "$work/rgi-mapping"
+"$work/rgi-mapping" "$root/tests/fixtures/rgi-map-reference.tsv"
 cc $flags -I"$root/native" \
   "$root/native/porsche_geometry.c" "$root/native/porsche_geometry_file.c" \
   "$root/native/porsche_session.c" "$root/tests/test_session.c" -o "$work/session"
@@ -29,13 +41,13 @@ cc $flags -I"$root/native" "$root/native/porsche_frame_quality.c" \
 ASAN_OPTIONS=handle_segv=0:halt_on_error=1:detect_leaks=1 \
   timeout -k 1 15 "$work/frame-quality" >"$work/frame-quality.log" 2>&1
 cat "$work/frame-quality.log"
-cc $flags -Wno-unused-function -Wno-unused-variable -I"$root/build/native" \
+cc $flags -Wno-unused-function -Wno-unused-variable -I"$root/build/native" -I"$root/native" \
   "$root/build/native/test_capture_display.c" "$root/native/porsche_geometry.c" \
   "$root/native/porsche_geometry_file.c" -ldl -pthread -o "$work/capture-display"
 ASAN_OPTIONS=handle_segv=0:halt_on_error=1:detect_leaks=1 \
   timeout -k 1 15 "$work/capture-display" >"$work/capture-display.log" 2>&1
 cat "$work/capture-display.log"
-cc $flags -Wno-unused-function -Wno-unused-variable -I"$root/build/native" \
+cc $flags -Wno-unused-function -Wno-unused-variable -I"$root/build/native" -I"$root/native" \
   "$root/tests/test_listener.c" "$root/native/porsche_geometry.c" \
   "$root/native/porsche_geometry_file.c" -ldl -pthread -o "$work/listener"
 ASAN_OPTIONS=handle_segv=0:halt_on_error=1:detect_leaks=1 \

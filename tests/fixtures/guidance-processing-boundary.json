@@ -1,0 +1,14 @@
+{
+  "native/porsche_rgi_hook.c": "e85c9d40649353d806638d952a74a2ba99e7cf283dabbcab046842d15a8abb4a",
+  "native/porsche_unit.c": "133a74ac7737bb5f8c1fce71d61ae2009589f20a3e9d13aa2461069f343c9257",
+  "native/porsche_autosupervisor.inc": "a87944a6bd7ba454bfd0343033bba650c3ce3ed63ff950cf3b2d508805bdd1bd",
+  "native/porsche_dm.c": "6ba96cc49690122b40b7011029bd05553bca7ac5a205da269dfaaac4ca626257",
+  "native/porsche_session.c": "54ba9dddb42d52ceb2e7714948f30e664cb8b85521ba7843e38eadc394810790",
+  "unit/mm_ipod_rgi.sh": "1b5c95263ce61b96c96d269146a9ac85e4bd2bc3e7ad8f712eb346aaff522438",
+  "unit/lsd_controls_watchdog.sh": "089e31df6c7eceaa473bf9601b2bd9484b9f05992c13f52a588436d450e43c18",
+  "java/org/connectwow/carplay/PorscheCluster.java": "03c9cb574c10e269a15900eea37ce6ae1979b04680f21174b7f035c20d74c617",
+  "java/org/connectwow/carplay/PorscheClusterControls.java": "0364577f8880f2bd0d47ecd694389ad25b95c2e9d2f5920baa1d8d8a7e7f00b1",
+  "verified/v14/cw-receiver-v6.so": "40b489be4a6a299c5e7aa83d850138ffcffb122d4d1adc6ea46ed8ba9b69f7e1",
+  "verified/v14/cw-window-candidate": "950107cb71eb13127175e9c5a29e3e387b74aac18e9a161f936c894aedf51072",
+  "verified/v14/libcw-query-stdio.so": "af1c407e4693447903283e800484e82bacf269dee8d6a72e21176e3e7b6fa9a7"
+}

@@ -52,10 +52,16 @@ def test_rgi_driver_uses_verified_writable_dispatch_tables():
     assert 'if(rc!=1)push_packet(link,packet)' in source
     assert "got_guidance" in source
     assert "now-last_request>=2" in source
+    assert 'table+0xc0+0x24' not in source
+    assert 'pthread_create(' not in source
+    assert 'message_hook(' not in source
+    # The candidate may change parsing/presentation, not add a TX dispatcher.
+    assert 'cw_rgi_tick(&state,cw_rgi_now_ms())' in source
     assert "now-last_publish>=2" in source
 
 
 def test_capture_path_does_not_load_the_mm_ipod_hook():
     source = (PATH.parents[1] / "build-tools/prepare_native.py").read_text()
-    assert 'cw_rgi_handle' not in source
+    capture=(PATH.parents[1]/'build/native/porsche_capture_receiver.c').read_text()
+    assert 'cw_rgi_handle' not in capture
     assert 'rgi-activate-binding' not in source

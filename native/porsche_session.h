@@ -27,5 +27,10 @@ unsigned cw_session_update(cw_session *session, const cw_geometry *current, uint
  * never take display ownership. */
 unsigned cw_session_frame(cw_session *session, uint32_t epoch, uint32_t now, uint32_t width,
                           uint32_t height, int idr, int output_ready);
+/* Use a CRC-checked producer frame lease after a blocking display query.
+ * frame_at is the producer timestamp, not when a cached record was read. */
+unsigned cw_session_observe_frame(cw_session *session, uint32_t epoch, uint32_t now,
+                                  uint32_t frame_at, uint32_t width, uint32_t height,
+                                  int idr, int output_ready);
 unsigned cw_session_stop(cw_session *session);
 #endif

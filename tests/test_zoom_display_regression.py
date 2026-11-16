@@ -60,7 +60,9 @@ def test_supervisor_tolerates_one_transient_geometry_read_gap():
     source = (ROOT / "native/porsche_unit.c").read_text()
     assert "cw_geometry last_valid_geometry" in source
     assert "last_geometry_read_ok" in source
-    assert "cw_monotonic_ms() - last_geometry_read_ok <= 2000U" in source
+    assert "last_geometry_read_ok && alive" in source
+    assert "!producer || !source_ready(producer)" in source
+    assert 'cw_wire_read(VIDEO_READY, "CWRD1", fresh_ready, 4)' in source
 
 
 def test_first_frame_waits_for_overlay_without_killing_healthy_worker():

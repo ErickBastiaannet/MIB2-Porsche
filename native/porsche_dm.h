@@ -8,6 +8,11 @@ typedef struct {
     int context;
 } cw_display;
 uint64_t cw_monotonic_ms(void);
+/* Absolute monotonic deadline shared by one live maintenance cycle. */
+int cw_dm_query_until(const char *root, const char *command, char *text, size_t capacity,
+                      uint64_t deadline);
+int cw_dm_switch_until(const char *root, unsigned display_id, unsigned context,
+                       uint64_t deadline);
 int cw_dm_query(const char *root, const char *command, char *text, size_t capacity);
 int cw_dm_display(const char *text, cw_display *display);
 int cw_dm_layer(const char *text, unsigned id, unsigned width, unsigned height, int present);

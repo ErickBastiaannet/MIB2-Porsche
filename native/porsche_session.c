@@ -64,3 +64,23 @@ unsigned cw_session_frame(cw_session *s, uint32_t epoch, uint32_t now, uint32_t 
     }
     return CW_NONE;
 }
+
+unsigned cw_session_observe_frame(cw_session *s, uint32_t epoch, uint32_t now,
+                                  uint32_t frame_at, uint32_t width, uint32_t height,
+                                  int idr, int output_ready) {
+    if (s->phase == CW_OEM || epoch != s->epoch)
+        return CW_NONE;
+    if (!output_ready || width != s->negotiated.width || height != s->negotiated.height ||
+        frame_at > now || now - frame_at > 3 || frame_at < s->last_frame_at)
+        return cw_session_stop(s);
+    if (s->phase == CW_WAIT_VIDEO && !idr)
+        return CW_NONE;
+    /* DisplayManager can block longer than the watchdog, but the producer's
+     * freshly checked lease proves real pixels progressed in that interval. */
+    s->last_frame_at = frame_at;
+    if (s->phase == CW_WAIT_VIDEO) {
+        s->phase = CW_CARPLAY;
+        return CW_SHOW_CARPLAY;
+    }
+    return CW_NONE;
+}

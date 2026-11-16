@@ -99,12 +99,11 @@ uint64_t cw_monotonic_ms(void) {
         return 0;
     return (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000;
 }
-static int execute(const char *root, char *const argv[], char *text, size_t capacity) {
+static int execute(const char *root, char *const argv[], char *text, size_t capacity, uint64_t deadline) {
     int fd[2], status = 0, done = 0, eof = 0;
     pid_t child;
     size_t used = 0;
-    uint64_t deadline;
-    if (!text || capacity < 2 || pipe(fd))
+    if (!text || capacity < 2 || !deadline || cw_monotonic_ms() >= deadline || pipe(fd))
         return 0;
     if (!spawn_query(root, argv, fd[0], fd[1], &child)) {
         close(fd[0]);
@@ -118,7 +117,6 @@ static int execute(const char *root, char *const argv[], char *text, size_t capa
         waitpid(child, &status, 0);
         return 0;
     }
-    deadline = cw_monotonic_ms() + 4000;
     while (cw_monotonic_ms() < deadline && (!done || !eof)) {
         ssize_t count = read(fd[0], text + used, capacity - 1 - used);
         if (count > 0)
@@ -145,11 +143,15 @@ static int execute(const char *root, char *const argv[], char *text, size_t capa
     }
     return eof && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
-int cw_dm_query(const char *root, const char *command, char *text, size_t capacity) {
+int cw_dm_query_until(const char *root, const char *command, char *text, size_t capacity,
+                      uint64_t deadline) {
     char *args[] = {"dmdt", (char *)command, NULL};
     if (strcmp(command, "gd") && strcmp(command, "gc") && strcmp(command, "gs"))
         return 0;
-    return execute(root, args, text, capacity);
+    return execute(root, args, text, capacity, deadline);
+}
+int cw_dm_query(const char *root, const char *command, char *text, size_t capacity) {
+    return cw_dm_query_until(root, command, text, capacity, cw_monotonic_ms() + 4000);
 }
 int cw_dm_display(const char *text, cw_display *out) {
     const char *line = text;
@@ -218,18 +220,21 @@ int cw_dm_layer(const char *text, unsigned id, unsigned width, unsigned height, 
     }
     return present ? (matches == 1 && valid == 1) : matches == 0;
 }
-int cw_dm_switch(const char *root, unsigned display_id, unsigned context) {
+int cw_dm_switch_until(const char *root, unsigned display_id, unsigned context, uint64_t deadline) {
     char id[16], target[16], text[16384];
     cw_display actual;
     unsigned backend_id;
     char *args[] = {"dmdt", "sc", target, id, NULL};
-    if (context > 157 || display_id == 0 || !cw_dm_query(root, "gs", text, sizeof(text)) ||
+    if (context > 157 || display_id == 0 || !cw_dm_query_until(root, "gs", text, sizeof(text), deadline) ||
         !cw_dm_display(text, &actual) || actual.id != display_id ||
         !cw_dm_backend_id(display_id, &backend_id))
         return 0;
     snprintf(target, sizeof(target), "%u", backend_id);
     snprintf(id, sizeof(id), "%u", context);
-    return execute(root, args, text, sizeof(text));
+    return execute(root, args, text, sizeof(text), deadline);
+}
+int cw_dm_switch(const char *root, unsigned display_id, unsigned context) {
+    return cw_dm_switch_until(root, display_id, context, cw_monotonic_ms() + 4000);
 }
 int cw_map_context(unsigned context) {
     unsigned n = context % 79;
@@ -292,7 +297,7 @@ int cw_dm_declare(const char *root, unsigned context, unsigned layer) {
         return 0;
     snprintf(id, sizeof(id), "%u", context);
     snprintf(window, sizeof(window), "%u", layer);
-    if (!execute(root, args, text, sizeof(text)))
+    if (!execute(root, args, text, sizeof(text), cw_monotonic_ms() + 4000))
         return 0;
     return cw_dm_query(root, "gc", text, sizeof(text)) &&
            cw_dm_context_state(text, context, layer) == 1;
@@ -302,7 +307,7 @@ int cw_dm_declare_overlay(const char *root) {
     static const unsigned layers[] = {78, 33};
     char text[65536];
     char *args[] = {"dmdt", "dc", "70", "78", "33", NULL};
-    if (!execute(root, args, text, sizeof(text)))
+    if (!execute(root, args, text, sizeof(text), cw_monotonic_ms() + 4000))
         return 0;
     return cw_dm_query(root, "gc", text, sizeof(text)) &&
            cw_dm_context_layers(text, 70, layers, 2) == 1;

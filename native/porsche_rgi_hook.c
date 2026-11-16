@@ -102,6 +102,9 @@ static int receive_hook(void *link) {
      * pending caller's packet. */
     if(rc!=1)push_packet(link,packet);
     now=time(NULL);
+    /* Passive expiry on existing RX traffic; no new sender/thread/dispatch hook. */
+    if(cw_rgi_tick(&state,cw_rgi_now_ms()))
+        cw_rgi_publish(&state,"/ramdisk/cw-carplay-guidance.v1");
     /* iOS sends route deltas, not periodic complete snapshots. Refresh the
      * cached state only on successfully received OEM link traffic. If the
      * link stops, Java's existing freshness timeout still clears guidance. */

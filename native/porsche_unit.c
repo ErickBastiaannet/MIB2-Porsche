@@ -77,6 +77,15 @@ static int verified_file(const char *path, const char *expected) {
     char digest[65];
     return cw_sha256_file(path, digest) && !strcmp(digest, expected);
 }
+
+static pid_t live_source_owner(void) {
+    long owner=0;unsigned long stamp=0;
+    FILE *file=fopen(SOURCE_READY,"rb");
+    if(!file)return 0;
+    if(fscanf(file,"%ld %lu",&owner,&stamp)!=2)owner=0;
+    fclose(file);
+    return owner>1&&source_ready((pid_t)owner)?(pid_t)owner:0;
+}
 static int firmware_check(void) {
     unsigned backend;
     if (!cw_dm_backend_id(1, &backend) || backend != 4) {
@@ -103,11 +112,11 @@ static int firmware_check(void) {
 }
 
 /* Native geometry replaces all Java/HMI boot overrides. */
-static int publish_geometry(const char *root, cw_display *display) {
+static int publish_geometry(const char *root, cw_display *display, uint64_t deadline) {
     static uint32_t generation, old_width, old_height;
     char report[16384];
     uint32_t values[12];
-    if (!cw_dm_query(root, "gs", report, sizeof(report)) || !cw_dm_display(report, display) ||
+    if (!cw_dm_query_until(root, "gs", report, sizeof(report), deadline) || !cw_dm_display(report, display) ||
         display->width > 1920 || display->height > 1080)
         return 0;
     if (!generation || display->width != old_width || display->height != old_height) {
@@ -175,6 +184,7 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
                          pid_t parent) {
 #endif
     cw_nvss sink;
+    pid_t producer=live_source_owner();
     cw_nvss_api api;
     void *library = NULL;
     AltFrameRing *ring = NULL;
@@ -256,7 +266,8 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
                     current.height != geometry->height)
                     break;
                 last_geometry_ok = checked_at;
-            } else if (checked_at - last_geometry_ok > 2000U) {
+            } else if (checked_at - last_geometry_ok > 2000U &&
+                       (!producer || !source_ready(producer))) {
                 fputs("CARPLAY_SOURCE_EXIT geometry-unavailable\n", stderr);
                 break;
             }
@@ -433,6 +444,7 @@ static void stop_child(pid_t *child) {
 #ifdef CW_YUV_RENDERER
 static int decode_worker(const cw_geometry *geometry, const char *root, unsigned original,
                          pid_t parent) {
+    pid_t producer=live_source_owner();
     cw_pixels channel = {0};
     cw_yuv_gl renderer = {0};
     cw_window window;
@@ -518,7 +530,8 @@ static int decode_worker(const cw_geometry *geometry, const char *root, unsigned
                     break;
                 }
                 last_geometry_ok = checked_at;
-            } else if (checked_at - last_geometry_ok > 2000U) {
+            } else if (checked_at - last_geometry_ok > 2000U &&
+                       (!producer || !source_ready(producer))) {
                 fputs("CARPLAY_RENDERER_EXIT geometry-unavailable\n", stderr);
                 break;
             }
@@ -628,14 +641,18 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
         cw_display observed;
         if (cw_monotonic_ms() >= geometry_at) {
             geometry_at = cw_monotonic_ms() + 1000;
-            if (publish_geometry(root, &observed) && active &&
+            /* Active maintenance shares the existing one-second poll budget.
+             * It must not block refresh of the three-second pixel lease. Cold
+             * preflight retains its normal four-second query allowance. */
+            uint64_t maintenance_deadline = cw_monotonic_ms() + (active ? 1000 : 4000);
+            if (publish_geometry(root, &observed, maintenance_deadline) && active &&
                 cw_map_context((unsigned)observed.context)) {
                 uint32_t lease[4];
                 unsigned now = now_seconds();
                 if (cw_wire_read(VIDEO_READY, "CWRD1", lease, 4) && lease[0] > 0 &&
                     lease[1] <= now &&
                     now - lease[1] <= 3)
-                    (void)cw_dm_switch(root, observed.id, 70);
+                    (void)cw_dm_switch_until(root, observed.id, 70, maintenance_deadline);
             }
         }
         struct stat log_stat;
@@ -651,14 +668,12 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
         if (valid) {
             last_valid_geometry = geometry;
             last_geometry_read_ok = cw_monotonic_ms();
-        } else if (last_geometry_read_ok &&
-                   cw_monotonic_ms() - last_geometry_read_ok <= 2000U) {
-            /* The same atomically refreshed lease is consumed by three
-             * processes.  Preserve the last verified value across one short
-             * read gap; explicit inactive/changed geometry remains immediate
-             * and a genuinely stale lease still expires after two seconds. */
-            geometry = last_valid_geometry;
-            valid = 1;
+        } else if (last_geometry_read_ok && alive) {
+            /* A slow control-plane query is not a dead video source. Reuse
+             * validated dimensions only while THIS producer has fresh frames.
+             * Explicit changed/inactive geometry and pixel timeouts still stop. */
+            valid = cw_geometry_follow_source(&last_valid_geometry, (uint32_t)owner,
+                                               (uint32_t)live_source_owner(), now, &geometry);
         }
         int startup_stable = 0;
         if (snprintf(enabled, sizeof(enabled), "%s/enabled", root) >= (int)sizeof(enabled) ||
@@ -696,6 +711,16 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
         } else {
             startup_owner = 0;
             startup_since = 0;
+        }
+        /* Refresh from real decoded pixels before evaluating a watchdog
+         * whose supervisor may have been blocked in dmdt. Do not take display
+         * ownership here: only an already active session is eligible. */
+        if (child > 0 && alive && valid && session.phase == CW_CARPLAY &&
+            cw_wire_read(VIDEO_READY, "CWRD1", ready, 4) && ready[0] > 0 &&
+            ready[1] <= now && now - ready[1] <= 3 && ready[1] >= session.last_frame_at &&
+            ready[2] == geometry.width && ready[3] == geometry.height) {
+            (void)cw_session_observe_frame(&session, session.epoch, now, ready[1],
+                                            ready[2], ready[3], 1, 1);
         }
         actions = child > 0 ? cw_session_update(&session, valid ? &geometry : NULL, now,
                                                 alive ? (uint32_t)owner : 0, 1)
@@ -752,7 +777,26 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
                     if (!cw_wire_write(CONTEXT, "CWCT1", snapshot, 3))
                         break;
                 }
-                negotiated = geometry;
+                /* Synchronous dmdt/preparation may outlive the observation's
+                 * TTL. Recheck the SAME source and any explicit geometry change
+                 * before starting a worker; never inherit another USB session. */
+                now = now_seconds();
+                {
+                    cw_geometry current;
+                    if (cw_geometry_read(GEOMETRY, now, &current)) {
+                        current.carplay_active = 1;
+                        if (cw_geometry_session(&geometry, &current) != 1) {
+                            retry_at = cw_monotonic_ms() + 250;
+                            continue;
+                        }
+                        geometry = current;
+                    }
+                }
+                if (!cw_geometry_follow_source(&geometry, (uint32_t)owner,
+                                               (uint32_t)live_source_owner(), now, &negotiated)) {
+                    retry_at = cw_monotonic_ms() + 250;
+                    continue;
+                }
                 child = fork();
                 if (child == 0) {
                     stopped = 0;
@@ -805,8 +849,15 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
 #endif
             }
             now = now_seconds();
-            if (ready[1] > now || now - ready[1] > 3)
+            /* dmdt may outlive the lease read before the query. Validate the
+             * latest decoded picture, not that obsolete local snapshot. */
+            uint32_t fresh_ready[4];
+            if (!source_ready(owner) ||
+                !cw_wire_read(VIDEO_READY, "CWRD1", fresh_ready, 4) || !fresh_ready[0] ||
+                fresh_ready[1] > now || now-fresh_ready[1] > 3 ||
+                fresh_ready[2] != ready[2] || fresh_ready[3] != ready[3])
                 output_ok = 0;
+            else memcpy(ready,fresh_ready,sizeof(fresh_ready));
             if (output_ok && !cw_wire_write(READY, "CWRD1", ready, 4))
                 output_ok = 0;
             /* A first decoded frame can precede DisplayManager's overlay
@@ -815,8 +866,8 @@ static int supervisor(const char *root, pid_t owner, int bounded_test) {
              * output failure remains fatal once the CarPlay layer is active. */
             actions = (!output_ok && session.phase == CW_WAIT_VIDEO)
                           ? CW_NONE
-                          : cw_session_frame(&session, session.epoch, now, ready[2], ready[3], 1,
-                                             output_ok);
+                          : cw_session_observe_frame(&session, session.epoch, now, ready[1],
+                                                     ready[2], ready[3], 1, output_ok);
             if (actions & CW_SHOW_CARPLAY) {
                 char text[16384];
                 cw_display display;
@@ -926,7 +977,7 @@ int main(int argc, char **argv) {
         return firmware_check() ? 0 : 1;
     if (argc == 3 && !strcmp(argv[1], "--prime-geometry")) {
         cw_display display;
-        if (!firmware_check() || !publish_geometry(argv[2], &display) || display.context != 72)
+        if (!firmware_check() || !publish_geometry(argv[2], &display, cw_monotonic_ms() + 4000) || display.context != 72)
             return 1;
         puts("CARPLAY_GEOMETRY_PRIMED");
         return 0;

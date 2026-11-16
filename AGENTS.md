@@ -79,6 +79,16 @@ Runtimeafhankelijkheden:
 - Tests: voeg een fixture/regressietest toe voor iedere protocol-, mapping-, lifecycle- of packagingwijziging.
 - Naamgeving: behoud bestaande `PorscheCarPlay*`, `cw-*`, profielnamen `v14`, `v14-5`, `v14-6`, `controls-v15` en runtimeprotocolnamen.
 
+## Guidanceverwerking versus bewezen keten
+
+Bij correcties van guidance-inhoud (manoeuvre, hoek, afstand, tekst, ETA, aankomst)
+blijven de bestaande ontvangsthook, abonnementen, starters, kaart en zoom intact.
+De gebruiker heeft dit expliciet geëist nadat transportproeven werkende CarPlay
+braken. Zie `docs/GUIDANCE_CHECKLIST_PROGRESS.md` en
+`tests/fixtures/guidance-processing-boundary.json`; de boundary-test en builder
+mogen niet automatisch worden bijgewerkt om een wijziging aan die keten toe te laten.
+Een eventuele latere transportwijziging vereist een afzonderlijk afgebakende opdracht.
+
 ## Werkwijze bij wijzigingen
 
 1. Bepaal eerst of de wijziging native, Java, launcher of packaging betreft; controleer vervolgens de volledige keten tot het daadwerkelijk geïnstalleerde artifact.
@@ -113,7 +123,10 @@ docker run --rm `
 
 Gebruik Windows-pytest niet als bewijs voor shellfixtures; die verwachten `/bin/sh`.
 
-Java-build vereist recovered OEM-JARs en een geschikte JDK:
+Java-build vereist recovered OEM-JARs, de exacte bestemming-API-klassen en een geschikte JDK.
+Maak de bestemming-buildinput zo nodig eerst met `build-tools/recover_destination_api.py --recovery-root <bestaande-jxe-recoverymap>`; dit gebruikt bestaande `rom.classes`, `deps` en `jxe2jar`. `build.py` leest standaard `build/porsche-destination-api.jar` (of `--destination-jar`). Deze OEM-dataklassen nooit als vervangingen in het uitrolpakket opnemen.
+
+Java-build:
 
 ```powershell
 python build-tools/build.py --oem-jar <recovered-oem.jar> --display-jar <recovered-display.jar> --jdk <jdk-directory>

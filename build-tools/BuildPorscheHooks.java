@@ -206,6 +206,40 @@ public final class BuildPorscheHooks {
         for (MethodNode method : combi.methods)
             if (method.name.equals("setCurrentStreet") && method.desc.equals("(Ljava/lang/String;)V")) street = true;
         if (!street) throw new IllegalStateException("OEM API mismatch: setCurrentStreet(String)");
+        String destination = "de/audi/atip/interapp/combi/bap/navi/data/CombiBAPNaviDestination";
+        String info = "de/audi/atip/interapp/combi/bap/navi/data/CombiBAPDestinationInfo";
+        boolean destinationMethod = false;
+        for (MethodNode method : combi.methods)
+            if (method.name.equals("setDestinationInfo") && method.desc.equals("(L" + info + ";)V")
+                    && (method.access & Opcodes.ACC_PUBLIC) != 0) destinationMethod = true;
+        if (!destinationMethod) throw new IllegalStateException("OEM API mismatch: setDestinationInfo");
+        boolean turnTo=false, environment=false;
+        for(MethodNode method:combi.methods)
+            if(method.name.equals("setTurnToInfo")&&method.desc.equals("([Lorg/dsi/ifc/navigation/BapTurnToInfo;)V"))turnTo=true;
+        for(FieldNode field:combi.fields)
+            if(field.name.equals("env")&&field.desc.equals("Lde/audi/tghu/navi/app/NavigationEnv;")&&(field.access&Opcodes.ACC_PROTECTED)!=0)environment=true;
+        if(!turnTo||!environment)throw new IllegalStateException("OEM next-road/time API mismatch");
+        ClassNode timeApi=new ClassNode();
+        new ClassReader(original.getInputStream(original.getJarEntry("de/audi/atip/base/IFrameworkAccess.class"))).accept(timeApi,0);
+        for(String name:new String[]{"getUTCTime","convertUTCTimeToLocalTime"}){
+            boolean found=false;String desc=name.equals("getUTCTime")?"()J":"(J)J";
+            for(MethodNode method:timeApi.methods)if(method.name.equals(name)&&method.desc.equals(desc))found=true;
+            if(!found)throw new IllegalStateException("OEM clock API mismatch: "+name);
+        }
+
+        String[] types = {destination, info};
+        String[] descriptors = {"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", "(L" + destination + ";)V"};
+        for (int i=0;i<types.length;i++) {
+            JarEntry entry = original.getJarEntry(types[i] + ".class");
+            if (entry == null) throw new IllegalStateException("Missing recovered destination class: " + types[i]);
+            ClassNode api = new ClassNode();
+            new ClassReader(original.getInputStream(entry)).accept(api, 0);
+            boolean constructor = false;
+            for (MethodNode method : api.methods)
+                if (method.name.equals("<init>") && method.desc.equals(descriptors[i])
+                        && (method.access & Opcodes.ACC_PUBLIC) != 0) constructor = true;
+            if (!constructor) throw new IllegalStateException("OEM destination constructor mismatch: " + types[i]);
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -235,7 +269,7 @@ public final class BuildPorscheHooks {
                     .filter(p -> p.getFileName().toString().startsWith("PorscheRouteGuidance") &&
                                  p.getFileName().toString().endsWith(".class"))
                     .sorted().toList();
-                if (guidanceClasses.size() != 3)
+                if (guidanceClasses.size() != 9)
                     throw new IllegalStateException("Unexpected PorscheRouteGuidance class set: " + guidanceClasses);
                 for (Path file : guidanceClasses)
                     add(out, classes.relativize(file).toString().replace('\\', '/'),

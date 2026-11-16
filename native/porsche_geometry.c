@@ -83,3 +83,18 @@ int cw_geometry_session(const cw_geometry *negotiated, const cw_geometry *curren
         return -1;
     return 1;
 }
+
+int cw_geometry_follow_source(const cw_geometry *validated, uint32_t validated_owner,
+                              uint32_t live_owner, uint32_t now, cw_geometry *out) {
+    if (!validated || !out || validated_owner <= 1 || live_owner != validated_owner ||
+        !now || validated->timestamp > now || !validated->generation || !validated->active ||
+        validated->width < 64 || validated->height < 64 ||
+        !validated->area_width || !validated->area_height)
+        return 0;
+    *out = *validated;
+    /* Timestamp describes this source-backed observation, not the last dmdt
+     * query. Session freshness still applies without fabricating a new HMI lease. */
+    out->timestamp = now;
+    out->carplay_active = 1;
+    return 1;
+}
