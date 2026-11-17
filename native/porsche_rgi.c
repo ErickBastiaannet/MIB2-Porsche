@@ -132,6 +132,19 @@ static void map_maneuver(unsigned type,int angle,unsigned junction,unsigned driv
     }
 }
 
+/* The same Apple app publishes localized and English labels in one session.
+ * A display label is not an app switch. Keep this alias list deliberately
+ * narrow: unrelated providers must still invalidate the previous route. */
+static int apple_maps_source(const char *name) {
+    return !strcmp(name,"Apple Maps") || !strcmp(name,"Apple Kaarten")
+        || !strcmp(name,"Apple\240Kaarten") || !strcmp(name,"Apple\302\240Kaarten")
+        || !strcmp(name,"Apple\240Maps") || !strcmp(name,"Apple\302\240Maps");
+}
+
+static int same_guidance_source(const char *a,const char *b) {
+    return !strcmp(a,b) || (apple_maps_source(a)&&apple_maps_source(b));
+}
+
 static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
     size_t o=6,vn; uint16_t id; const uint8_t *v; int changed=0;
     /* The list is a sequence of uint16 IDs, not a count followed by IDs.
@@ -146,7 +159,9 @@ static int parse_update(cw_rgi_state *s,const uint8_t *m,size_t n) {
             uint64_t epoch=s->epoch;
             /* First source label may follow the route's prefetched payloads.
              * Only an actual source switch invalidates those payloads. */
-            if(s->source_name[0]){memset(s,0,sizeof(*s));s->epoch=epoch;}
+            if(s->source_name[0]&&!same_guidance_source(source,s->source_name)){
+                memset(s,0,sizeof(*s));s->epoch=epoch;
+            }
             memcpy(s->source_name,source,sizeof(source));changed=1;
         }
     }

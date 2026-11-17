@@ -21,4 +21,10 @@ CW_PROCESS_SUPERVISOR=1
 LD_PRELOAD=$ROOT/cw-receiver-controls.so
 export CARPLAY_ALTSCREEN_ENABLE CARPLAY_ALTSCREEN_LOG CARPLAY_ALTSCREEN_CAPTURE_DIR
 export CW_AUTO_ALT_WAKE CW_PROCESS_SUPERVISOR LD_PRELOAD
+# QNX's live spawn path left the supervisor's stdout/stderr on /dev/ser1.
+# Establish inherited output here, before the unchanged receiver is exec'd.
+# Failure to open diagnostics must never prevent stock CarPlay from starting.
+if ( : >> "$RUNTIME/cw-carplay-live-v14.log" ) 2>/dev/null; then
+    exec "$STOCK" "$@" >> "$RUNTIME/cw-carplay-live-v14.log" 2>&1
+fi
 exec "$STOCK" "$@"

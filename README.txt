@@ -211,3 +211,11 @@ Installatie, herstel en logging
   wordt automatisch persistent opgeslagen.
 * Geen privéwachtwoorden, tokens, telefoonvideo of firmwaredumps in Git.
   Deze integratie wijzigt geen hosts, certificaten, traffic- of licentiegegevens.
+
+
+Porsche-routevoorrang (MU1417, fysiek getest 17-11-2026)
+Een originele Porsche-route krijgt voorrang op de teller voor kaart en guidance.
+Na stoppen van de Porsche-route keert geldig CarPlay-kaartbeeld automatisch terug.
+De CarPlay-kaart blijft zonder actieve telefoonroute bruikbaar. De iPhone-route
+wordt niet automatisch gestopt. Permanente activatie is op de testunit bevestigd;
+zie docs/NAVIGATION_PRIORITY.md voor installatie, hashcontrole en herstel.

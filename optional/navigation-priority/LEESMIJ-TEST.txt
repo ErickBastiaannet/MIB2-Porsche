@@ -1,0 +1,52 @@
+PORSCHE NAVIGATIEVOORRANG - AFZONDERLIJKE MU1417-TEST
+
+Status: lokale kandidaat, nog NIET fysiek bevestigd en niet automatisch laden.
+Geen iPhone-routes stoppen. Het gaat om kaart en guidance op de teller.
+
+Gebruik dit alleen bij de exact bevestigde baseline uit manifest.json.
+Bewaar de huidige werkende SD-kaart en de firmware-back-ups.
+Dit ZIP-bestand is geen Online Menu-overlay: pak het uit in een eigen map op
+SD of kopieer het naar MMX RAM via het bestaande overdrachtspad.
+
+Op MMX eerst:
+/bin/ksh -n /pad/naar/install.sh
+/bin/ksh /pad/naar/install.sh
+Alleen na NAVIGATION_PRIORITY_ONESHOT_READY_NO_REBOOT doorgaan.
+VÃ³Ã³r het schrijven draait automatisch link-check.sh: een aparte J9-JVM met
+32 MB heap controleert de klassen zonder OEM-initializers uit te voeren. Bij
+fout of een time-out (20 seconden) stopt installatie vÃ³Ã³r remount/schrijven.
+Bewaar link-check.log; een LINK_PASS is nog geen bewijs van fysieke werking.
+
+De installer herstart NIET. Herstart pas na de afgesproken stilstandbevestiging.
+
+De eerstvolgende HMI-start selecteert de gecombineerde test-JAR en een RAM-
+activeringsmarker. Bij een volgende HMI-/PCM-start zonder nieuw pending-ticket
+worden de vorige bevestigde Java-JARs weer gekozen. De native kandidaat staat
+dan nog op app, maar de prioriteitsfunctie is zonder RAM-marker uitgeschakeld.
+Volledig dezelfde vorige bestanden terug: restore.sh uitvoeren en herstarten.
+Geen confirmed-marker voor deze nieuwe functie aanmaken voordat de proef slaagt.
+
+Testvolgorde, uitsluitend stilstaand:
+1. Laat CarPlay-kaart en CarPlay-route werken, controleer huidige zoom en logo.
+2. Start originele Porsche-route: originele kaart en alleen originele guidance.
+3. USB los/vast tijdens originele route mag CarPlay niet op de teller zetten.
+4. Stop originele route: CarPlay terug als er geldig beeld is. Zonder beeld
+   moet originele kaart blijven staan. Controleer nieuwe guidance, niet oude.
+5. Start/stop opnieuw, wissel Apple Maps/Google Maps en controleer zoom.
+6. Aankomst met echte originele route moet nog apart worden gecontroleerd.
+   Deze kandidaat geeft vrij nadat de originele inactive-update is verwerkt;
+   een aparte aankomstpresentatie/duur is nog niet fysiek bewezen.
+
+Let op: een zoomcommando dat al naar iOS verstuurd was kan niet worden
+teruggenomen. Nieuwe/queued Java-zoom wordt bij OEM-overname geblokkeerd/gewist.
+Gesproken iPhone-instructies kunnen blijven lopen; die zijn niet aangepast.
+
+Diagnostiek in /ramdisk:
+cw-navigation-priority.log, cw-nav-priority.v1, cw-nav-priority.applied,
+cw-carplay-ready.v1 en bestaande guidance-/videologs. Logs verdwijnen na reboot;
+lees ze voor herstart uit. Geen ruwe telefoonvideo bewaren.
+
+Bij uitval: niet blijven proberen met nieuwe scripts. Gebruik de geverifieerde
+restore.sh via Telnet/Online Menu en herstart. Restore herstelt de native kaart-
+binary en lsd-starter, niet alleen een instelling. Guidance, logo-, traffic-,
+certificaat- en hostsinstellingen van de baseline blijven bewaard.

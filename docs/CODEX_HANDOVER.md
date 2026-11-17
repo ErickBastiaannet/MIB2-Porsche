@@ -1,6 +1,340 @@
 # Actuele Codex-overdracht — Porsche CarPlay-cluster
 
-Laatst bijgewerkt: 16 november 2026
+## OFFLINE CONTROLE AFGEROND - routevoorrang, 17 november 2026
+
+Gebruiker vroeg controle ZONDER auto. Geen verdere verbinding, installatie of
+herstart geprobeerd. Nieuwe build-tools/verify_priority_rom_links.py controleert
+constantpoolleden/signaturen en private toegang van kandidaatklassen tegen exacte
+J9-ROM-metadata (rom.classes uit de bestaande MU1417-recovery). Gebruikt bestaande
+ReaderStream/J9ROMMethod/J9ROMField, geen OEM-initializers of QNX-emulatie.
+
+Deze controle vond een echte externe afhankelijkheid: ClusterService.showKombiMap
+riep onbeschermd PorscheGeometry.setVisible(Z)V aan terwijl die klasse in noch
+het splitpakket noch OEM-ROM zat. Dezelfde oude observer-hook zat al in de
+gehashte baseline-guidance-JAR. Niet simpelweg de oude geometry publisher/JAR
+bijvoegen: die kan een extra publisher/worker activeren naast native geometry.
+BuildNavigationPriority.java verwijdert nu exact de bekende ILOAD1+invokestatic
+observerstaart uit showKombiMap, met telling==1 en baseline-hashguards. Originele
+MapInterface.showKombiMap-call blijft staan. Baseline-JARs en live unit niet gewijzigd.
+
+Nieuwste kandidaat-JAR SHA
+fedd4e15c80b9ae64f541c681502fdef18495e212c8e5097f657d153f6506995.
+Audit:22 kandidaatklassen, alle major46 (Java1.2),1320 verwijzingen opgelost,
+0 ontbrekende leden,0 private-accessfouten,0 onbevestigde verwijzingen en0 ROM-
+leesfouten. Auditrapport build/navigation-priority/rom-link-audit.json. Een
+onopgeloste referentie laat de audit nu falen (niet als optionele API goedkeuren).
+De packagebuilder vereist audit van exact dezelfde JAR met alle foutlijsten leeg
+en neemt rapport+hash op in ZIP/manifest. ASM-stackcontrole en exacte hooktellingen
+slagen. Drie Java policy/runtime-tests en package/rollback/oneboot-tests opnieuw
+gehaald. Dit is sterker offline bewijs; GEEN bewijs van J9-start, HMI-boot of
+fysieke omschakeling. De eerdere OOM van controle-JVM blijft onbevestigd qua oorzaak.
+
+Laatste ZIP SHA
+d39d212fa35733a183a447aaed73133d7f46eb77c7fdfea2ecd776009f992577
+(build/porsche-navigation-priority-MU1417-test.zip). Nativefaf28f9c behouden en
+bevat de bevestigde startupfix. Oude RAM-stage/JARc81b7a2 en scripts op unit horen
+NIET bij deze laatste build. Volgende auto-sessie eerst nieuwe bestanden/hashes
+overdracht en aparte J9-linkcontrole; geen oude installer automatisch gebruiken.
+Voorrang is nog steeds niet geinstalleerd/geactiveerd, werkende baseline blijft.
+
+Offline opdrachten:
+python build-tools/verify_priority_rom_links.py --recovery-root <bestaande-mu1417-recovery>
+python build-tools/build_navigation_priority_package.py
+python -m pytest -q tests/test_navigation_priority_policy.py tests/test_navigation_priority_runtime.py
+(voor die Java-tests JAVA_HOME op bestaande JDK zetten).
+Docker qnx65-armv7:4.9: python3 tests/navigation_priority_transaction.py.
+
+
+## LOPEND - Porsche-routevoorrang, 17 november 2026; gebruiker uit auto
+
+Gebruiker vroeg de voorbereide voorrangsfunctie. Lokale kandidaat bijgewerkt om
+DE HUIDIGE startupfix te behouden: prepare_navigation_priority_native.py genereert
+nu eerst build/context-startup/porsche_unit.c en bouwt daarop voort. Package
+baseline_window is6e7fcdaa, niet meer41414ee5. Java-baselines59842f9e/a24db7e9
+zijn gelijk gebleven. Nieuw native artifactfaf28f9c3997766962feb3cdf4f8b28a44451cf839db6650a997b16a95a82995;
+Java artifactc81b7a2befaf198720fe976dd6e8bd9d57761e75d65291a7033677a195728663.
+
+3 host-Java tests geslaagd (policytransities en runtime/writerinterleaving),
+native gate Linux-C-test geslaagd, legacy-ASM-verificatie/hooks en QNX-build
+-Werror geslaagd. Opt-out van de gepatchte guidance slaagt tegen bestaande
+RouteGuidanceTextFixture met alleen de guidance/runtimeklassen voor de hoststubs.
+Hele candidate-JAR voor hoststubs plaatsen geeft ontbrekende OEM-interfaces;
+dat is geen geldig hostfixture-classpath. tests/navigation_priority_transaction.py
+blijft slagen met de nieuwe startupbaseline (corrupt input, rollback, oneboot,
+volgende-boot-terugval en exact herstel naar6e7fcdaa/5a7f5a08).
+
+RAM-stage op unit /ramdisk/cw-navigation-priority-20261117 (verdwijnt na reboot),
+alle zes bestanden via tijdelijke RAM-ontvanger22110 met correcte hashes overgezet.
+Echte QNX-ksh-syntax goed. Installer tweemaal geprobeerd, maar verplichte aparte
+J9-linkcheck faalde VOOR mount/schrijven met JVMEXEX015E startup Out of memory.
+Eerst Xmx12m, daarna Xmx32m; ook32m faalde. GEEN prioriteits-JAR, aangepaste LSD,
+pending-marker of nieuwe native ELF geinstalleerd. Pending-bestand gecontroleerd:
+ontbreekt. Bestaande kaart/guidance/startupfix blijven6e7fcdaa/A033/5a7f5a08.
+Gebruiker wilde uit de auto: geen verdere unitacties of reboot gedaan en expliciet
+gezegd dat vertrekken kon. Niet opnieuw een zichtbare proef starten zonder nieuwe
+stilstandbevestiging. Voorrang is nog NIET actief, NIET fysiek bevestigd.
+
+Onderzoek controle-JVM: historische werkende helper staat in
+mqb-backend-private/.tmp/porsche-carplay-recovery/run_link_test.py en
+java-link-verified48.txt. Die gebruikt minimale LD_LIBRARY_PATH
+/ifs/jre/bin:/armle/lib:/armle/usr/lib:/eso/lib en absolute bootclasspath-prefixen.
+Nieuwe link-check.sh gebruikte extra /mnt/app-librarypaden en relatieve prefix.
+Lokaal aangepast naar historisch minimale librarypath en absolute $PWD-prefix;
+Xmx32m en20s grens behouden. Dit is een nog ONBEVESTIGDE reparatie van de
+controleomgeving, niet een bewezen oorzaak van OOM. Die aangepaste scripts zijn
+NIET opnieuw naar de unit overgezet/getest. Geen extra geheugenverhogingen gokken.
+
+Laatste lokale ZIP build/porsche-navigation-priority-MU1417-test.zip SHA
+36a50724335813f34740ab21ace01e693129cf5d16cd416b84b926c7855a93c8;
+installer/linkscripthashes daarin verschillen dus van de RAM-stage van de unit.
+Controleer manifest, draag bijgewerkte scripts over en verifieer hashes opnieuw.
+Volgende stap bij beschikbare auto: in aparte korte JVM eerst -version/probe met
+exact historisch librarypad controleren; daarna RuntimeLinkProbe (zonder OEM-
+initializers), pas na volledige LINK_PASS de oneboot-installer laten doorgaan.
+Geen linkcheck omzeilen. Bestaande oneboot-native/Java-kandidaat nog functioneel
+controleren op idle-event bij start en Porsche-route start/stop/reconnect. Aankomst-
+presentatie is alleen via originele inactive-callback gekoppeld, geen verzonnen
+holdtimer. iPhone-route/audio blijft op achtergrond; alleen tellerbron wordt gekozen.
+
+
+## FYSIEK BEVESTIGD - startupvariant na PCM-herstart, 17 november 2026
+
+Na nieuwe expliciete stilstand/herstartbevestiging RCC-reboot uitgevoerd. Nieuwe
+receiver1675370, worker1966203. Nieuwste native startupvariant6e7fcdaa is geladen:
+CARPLAY_CONTEXT_DEFERRED free-window=78 t_ms=28870;
+CARPLAY_CONTEXT_PREPARED t_ms=34573;
+CARPLAY_ACTIVE display=1 context=70 size=800x480 t_ms=37241.
+Verse video/ready-leases aanwezig, slechts een workerstart, geen restartlus in de
+opname. Apple-guidance main13/direction64 bij cursor4 met teruglopende afstand.
+Gebruiker bevestigde expliciet dat kaart EN routeaanwijzingen zichtbaar zijn.
+
+Gemeten kaartactivatie bij deze PCM-herstart:37.241s na boot, circa18s na iPhone
+IdentificationAccepted op t19. Eerdere PCM-herstart had identificatie op t49 en
+kaartactivatie tussen61..72; de telefoon kwam nu dus ook vroeger online. Schrijf
+niet de volledige end-to-end tijdwinst automatisch toe aan de startupvariant.
+De nieuwe ordening (worker voor contextcontrole, daarna strikte activatie) is
+wel fysiek succesvol doorlopen. Een nieuwe volledige ruststart met deze variant
+moet nog worden gemeten; de eerdere126s-meting was met de oude41414ee5-versie.
+Permanent geinstalleerde native variant en Apple-fix blijven staan. Geen commit
+of push uitgevoerd voor deze sessiewijzigingen.
+
+
+## NIEUWSTE INSTALLATIE - context-startup-variant, 17 november 2026
+
+Gebruiker vroeg ruststartfix en expliciet 'zet er maar in'. Native kandidaat is
+geinstalleerd op schijf, zonder de lopende supervisor/renderer te stoppen en
+zonder reboot. Exacte nieuwe cw-window-candidate SHA:
+6e7fcdaad2aef40cf9381f6a08374b58501044d63d091ad64957921f8a426d9f.
+Backup controls-v15/before-context-startup-20261117/cw-window-candidate is exact
+41414ee595c11b9417c76cea06a8209f4cceb02d395c61a546dd000b65705cce.
+Beide hashes teruggelezen; installer remount -ur geslaagd. DIO2441337,
+supervisor2523258, workers3149952/3149954 bleven draaien met verse 800x480-ready.
+Dus op dit moment draait de oude in-memory versie nog; nieuwe ELF wordt bij een
+volgende receiver/supervisorstart geladen. GEEN fysieke validatie van nieuwe
+startupvariant claimen; tijdwinst na volledige ruststart nog te meten.
+
+Implementatie: build-tools/prepare_context_startup.py genereert een afzonderlijke
+kopie naar build/context-startup/porsche_unit.c. Baseline native/porsche_unit.c,
+porsche_dm.c, capture, Java, guidance en alle processing-boundarybestanden zijn
+ongewijzigd. QNX-build: build-tools/build_context_startup_qnx.sh.
+Referentiepatroon: LuKa carplay_monitor.sh start renderer onafhankelijk van het
+later omschakelen van de presentatiecontext. Kandidaat start decoder/renderer op
+een vooraf geverifieerde vrije laag78 zonder eerst gc/prepare_context af te wachten.
+Een bestaand of corrupt ownerrecord blijft vooraf blokkeren als dat niet veilig
+als vrij kan worden aangemerkt. Bestaande vensters volgen de oorspronkelijke
+strikte controle. Na bruikbare pixels worden de oorspronkelijke context-,
+eigenaarschap- en compositiecontroles alsnog afgedwongen VOOR ready/switch.
+Bij wachten blijft OEM zichtbaar en wordt een gezonde worker behouden.
+Dit kan de opstartafhankelijkheid doorbreken; het bewijst nog NIET welke specifieke
+gc/ownerconditie tijdens de gemeten ruststart faalde of hoeveel tijd dit bespaart.
+
+Toegevoegd: CARPLAY_CONTEXT_DEFERRED, CARPLAY_CONTEXT_WAIT reason=query/report/
+layout/owner-record/live-owner/owner-write, CARPLAY_CONTEXT_PREPARED en monotone
+milliseconden op CARPLAY_ACTIVE. Daarmee volgende start exact(er) volgen.
+De aanvankelijke gedachte dat de numerieke gc-kolom flags was, is VERWORPEN:
+alle 165 OEM-records hadden exact dat aantal lagen. Er is geen parserwijziging
+voor die onjuiste hypothese gedaan. Eigenaarcontrole is NIET uitgezet/verruimd.
+
+Tests: tests/context_startup_runtime.py compileert echte baseline en kandidaat-
+supervisor, stubt alleen de GPU-worker en gebruikt echte begrensde dmdt-subprocessen.
+Toont: baseline wacht zonder worker bij gc-blokkade; kandidaat warmt eenmaal op,
+laat OEM staan, geeft geen ready voor contexttoestemming, weigert andere levende
+eigenaar, schakelt na vrijgave en herstelt OEM bij disconnect. Dit test geen GPU
+of echte bootduur. QNX-build met -Werror geslaagd. Installer
+unit/install_context_startup.sh met tests/context_startup_transaction.py getest:
+corrupt payload geweigerd voor mount, backup, atomische swap, rollback na fout
+NA swap, read-only remount. Gepinde processing-boundarytest blijft slagen.
+
+Overdracht: raw Telnet-upload bleek onvolledig (hashcontrole voorkwam installatie).
+Daarna bestaande unit-query/ram_receive.c helper gebruikt: tijdelijke RAM-ontvanger
+op bestaande debugpoort22110, eenmalige random token, max1MiB, alarm20s. Beide
+bestanden snel en exact overgezet; listener sluit na 1 overdracht. Geen FTP- of
+firewallconfig gewijzigd. Kleine helper vooraf betrouwbaar gecomprimeerd via
+.tmp/unit_console.py --upload geladen. Gebruik voortaan dit bekende RAM-pad voor
+binaries; raw telnet_push --binary niet als betrouwbaar presenteren.
+
+Pakket: build/context-startup-MU1417-20261117.zip met kandidaat, install.sh en hashes.
+Dit is een zelfstandig native updatepakket, geen generieke SD-menu-update.
+Volgende stap: afgesproken nieuwe start, controleer log plus fysieke kaart en
+vergelijk volledige ruststart. Niet spontaan herstarten tijdens rijden. Voor exact
+herstel atomisch de geback-upte41414ee5 ELF terugzetten; Apple-fix/Java/capture
+hoeven daarvoor niet gewijzigd te worden.
+
+
+## RUSTSTART WAARGENOMEN - 17 november 2026
+
+Gebruiker meldde een start vanuit rust. Nieuwe receiver2441337 en supervisor2523258;
+RGI IdentificationAccepted op t60, guidance geldig vanaf t66 (Apple-labelwissel
+behoudt nu manoeuvretype/hoek). Rond t86..91 nog geen ready/context/ownerbestand;
+supervisor herhaalde CARPLAY_CONTEXT_NOT_AVAILABLE en had geen videoworker.
+Daarna CWCT1 timestamp126 original72; worker3149952 en CARPLAY_ACTIVE verschenen.
+Bij de volgende volledige controle verse CWRD1 epoch4356 timestamp310 800x480.
+Dus schermvoorbereiding kon pas op 126s na boot, tegenover 61s bij de eerdere
+PCM-herstart. Het exacte eerste zichtbare frame is NIET getimestamped; presenteer
+126s niet als exacte kaartverschijntijd. Geen automatische workerherstartlus gezien.
+
+Deze opname lokaliseert wachten in prepare_context (gc-query/controle/eigenaarschap),
+maar de generieke foutmelding onderscheidt querytimeout en afgewezen registratie
+nog niet. Geen configuratie of draaiende CarPlay-processen gewijzigd/herstart.
+Een afzonderlijke handmatige read-only dmdt gc-query met stdio-preload liep vast
+met 'proxy is DEAD'; eigen diagnostiekproces3629191 na verificatie van commandline
+met TERM beeindigd en afwezigheid bevestigd. Dit is GEEN bewijs dat de supervisor
+precies dezelfde fout kreeg. Vermijd onbeperkte nieuwe handmatige dmdt-queries.
+
+Volgende reparatiestap: prepare_context-diagnostiek met monotone tijdstempels en
+onderscheid query/parse/context/owner (afzonderlijk afgebakende startupwijziging),
+vergelijken met referentie en OEM-coldbootregistratie. Niet blind context70 wissen
+of overnemen zonder controle op lagen/eigenaar. Startupvertraging nog niet opgelost.
+
+
+## LIVE NA HERSTART - 17 november 2026
+
+Na expliciete stilstand- en herstartbevestiging RCC-reboot uitgevoerd. Telnet werd
+door de unit verbroken en kwam terug met verse RAM-state. Nieuwe receiver2363513,
+supervisor2437242, decoder/renderer2592892/2592899. Nieuwe logging bestaat nu echt
+in /ramdisk/cw-link-probe-20261102/cw-carplay-live-v14.log en meldt een workerstart,
+gevolgd door CARPLAY_ACTIVE display=1 context=70 size=800x480. Verse ready:
+CWRD1 epoch338 timestamp72 800x480. In deze korte opname geen preflight-failure of
+herhaalde workerstarts. Dit is een PCM-herstart, GEEN volledige ruststartproef.
+
+Live RGI wisselt t51..54 opnieuw Apple Maps -> gelokaliseerd Apple Kaarten ->
+Apple Maps, maar heeft daarna rawType11, main13 en twee gecachte rijstroken;
+Java publiceert maneuver13/0 en phase2. Eerder was rawType=-1/main1 na dezelfde
+labelwissel. Daarmee is behoud over de labelwissel op de unit bevestigd. Het
+actuele type11 zonder afslaghoek levert legitiem een rechtuitdescriptor; nog
+niet alle afslagtypen of een volledige rit fysiek bevestigd. Gebruiker bevestigde na deze herstart expliciet: kaart EN routebegeleiding
+zichtbaar. Dit is fysiek bevestigd; ruststart en volledige manoeuvreverwerking
+tijdens een rit blijven afzonderlijk te controleren. Parser en starterreparatie zijn nu geladen. Oude tekst
+'NOG NIET in nieuwe sessie' hieronder betreft de fase voor deze herstart.
+
+
+## ACTUEEL 17 november 2026 - Apple-bronlabel gerepareerd, logging voorbereid
+
+Fysiek onderzocht via Telnet, zonder reboot of processtop. In dezelfde actieve
+Apple-sessie wisselde source_name op t=1496 van het gelokaliseerde Apple Kaarten
+(met afwijkende spatie) naar Apple Maps. De bestaande parser behandelde elke
+naamswijziging als een andere app en wiste de manoeuvrecache. Live CWRG5 had
+vervolgens cursor 0..3, positieve telling/afstanden, maar rawType=-1 en main=1;
+Java publiceerde Follow. Vanaf cursor 8 kwamen weer echte afslagdescriptoren.
+Waarom iOS juist die payload opnieuw stuurde is zonder raw capture onbevestigd.
+
+Reparatie native/porsche_rgi.c: uitsluitend bekende Apple Maps/Apple Kaarten
+aliaslabels (ASCII, NBSP en UTF-8 NBSP) delen bronidentiteit. De actuele labeltekst
+blijft bijgewerkt; echte appwissels zoals Google Maps wissen nog steeds de cache.
+Ontvangsthook, Java, zoom, renderer en alle gepinde processing-boundarybestanden
+zijn ongewijzigd. De afzonderlijk aangetoonde count-only/selectiebug is NIET in
+deze reparatie meegenomen; verwar die niet met de live gevonden bronwissel.
+
+Opstartdiagnostiek: actuele supervisor PID8388737 had stdout/stderr op /dev/ser1.
+Het verwachte cw-carplay-live-v14.log ontbrak; persistente renderer.log hoorde bij
+een oudere receiver. Daarom is de oorzaak van de gemelde trage ruststart nog niet
+bewezen. unit/carplay_receiver_start.sh stelt nu inherited stdout/stderr naar dat
+logbestand in, met exec-fallback als het log niet geopend kan worden. Werking op
+de daadwerkelijke QNX spawn-keten moet bij de volgende receiverstart worden
+gecontroleerd (pidin fds + log); niet als fysiek opgelost presenteren.
+
+Geinstalleerd via unit/install_source_alias_repair.sh, marker
+SOURCE_ALIAS_REPAIR_INSTALLED_RESTART_REQUIRED. Beide doelhashes teruggelezen:
+- cw-rgi.so a033051e84926c9a6912970771f5dbb5ee7dd124f6953898c4fdaf9f143e000e
+- cw-carplay-start 19728746c841f472e37df42aa1ff617d3bca2f37fefac35486e5d0b03d4a8118
+Backup: controls-v15/before-apple-source-20261117/ bevat native c917554d en
+starter f58eba1a. Remount -ur geslaagd; DIO bleef PID8319100. Geen herstart,
+geen kill, geen wijziging van confirmed-markers. Bestanden staan permanent op
+schijf, maar de reparatie is NOG NIET fysiek in een nieuwe sessie bevestigd.
+Nieuwe mm-ipod start laadt parser; nieuwe receiverstart laadt starterdiagnostiek.
+
+Lokaal geslaagd: tests/test_rgi_source_alias.c, bestaande RGI/lifecycle-tests,
+4536 referentiemappinggevallen, receiver_bootstrap_host.py (same PID, herhaalde
+exec, disabled fallback), QNX crosscompile van uitsluitend RGI, QNX ksh-syntax,
+receiver_bootstrap_transaction.py, source_alias_transaction.py en gepinde boundary.
+Artifact: build/apple-source-repair-MU1417-20261117.zip, zelfstandig herstelpakket,
+geen generieke SD-menu-integratie. Installatie heeft hashcontroles en rollback.
+
+Volgende stap: na normale nieuwe start Apple-route vanaf eerste manoeuvre
+controleren; log moet type/cursor behouden over gelokaliseerde bronlabels. Controleer
+of supervisor-uitvoer nu in het log komt en meet een echte ruststart. Geen nieuwe
+transportexperimenten of restart zonder stilstandbevestiging. De eerdere lokale
+navigation-priority-kandidaat is nog steeds NIET op de auto geinstalleerd.
+
+
+Laatst bijgewerkt: 17 november 2026
+
+## NIEUWSTE LOKALE WERKSTATUS - routevoorrang-kandidaat gereed voor gecontroleerde proef
+
+Gebruiker vroeg een solide oplossing om te testen. Geen unitverbinding, upload,
+installatie, bevestiging of herstart gedaan bij deze opdracht. Live blijft de
+bevestigde kaart/guidance/logo-basis van de vorige secties.
+
+Afzonderlijk pakket: build/porsche-navigation-priority-MU1417-test.zip
+SHA256: 717e4a20010edd3948606e4a8942491f20cecac9268bb2f8cca8ba1e9197fd90
+Dit is geen SD Online Menu-overlay; eigen map op SD of via bestaand RAM-pad.
+LEESMIJ-TEST.txt en manifest zitten in de ZIP; geen automatische activering.
+
+Implementatie in optional/navigation-priority plus aparte builders; bestaande
+java/native/unit-broncode blijft bytegelijk aan de beschermde baseline. De nieuwe
+builder patcht alleen aparte kopie?n: DSI-update entry, ClusterService-return,
+guidance apply/clear/poll,12 BAP/synchronized-methoden, ready-gate en zoomqueue-
+flush. Geen nieuwe constructorthread; de bestaande guidance-worker publiceert
+CRC-beveiligde producergebonden3s-status naar een opt-in native gate. Native
+blijft decoderen, laat OEM zien bij routevoorrang en bevestigt echte uitvoer.
+De logo-helper gebruikt de gekopieerde ready-gate en volgt zo dezelfde keuze.
+
+Artefacts:
+- Java: c81b7a2befaf198720fe976dd6e8bd9d57761e75d65291a7033677a195728663
+- Native: 0dcb8401e141bdf1eeb2d03fb108be5c1a267545aeace66818d2670948fa1b4c
+- Teststarter: 1e642718e9caad87ff350160cbc9877e214cd2a188600892d622d412691d43f8
+Baselineguards: native41414ee5..., starter5a7f5a08..., logo-JAR59842f9e...,
+guidancea24db7e9..., capturec0208032... en dispatcherklasseb2857648....
+Originele capture/guidance/logo-JARs worden niet vervangen door de installer.
+Backup native/LSD: controls-v15/before-navigation-priority-20261116/.
+
+Install.sh verifieert hashes en draait eerst link-check.sh: aparte echte J9
+met12MB heap, -Xverify:all, geen OEM-initializers en20s-time-out met eigen-child-
+opruiming. Dit is nog NIET op de echte unit uitgevoerd. Bij mislukking geen
+remount of installatie. Daarna transactionele installatie en one-boot-ticket.
+Bij volgende HMI-start zonder ticket: bevestigde Java-baseline en RAM-gate uit;
+native kandidaat blijft dan inert op app. Restore.sh herstelt de exacte oude
+native/LSD-bestanden en vereist daarna herstart. Geen permanente bevestiging
+voor deze nieuwe prioriteitsfunctie gebouwd/geactiveerd.
+
+Controles geslaagd: 2.304 policytransities; echte runtime-adapter met threads en
+CRC-records; bestaande guidance-boundary en logo-lifecycle (5 pytest-tests);
+Linux-C-gate met echte wire/CRC/freshness; QNX ARM -Werror; ASM/legacy-bytecode;
+bestaande RouteGuidanceTextFixture tegen de gewrapte guidance (optie uit);
+pakkettransactionstest inclusief corruptie, renamefout, terugval,1 prefix en
+volledig herstel. Scripts ksh-syntax in toolchain goed. Dit is geen fysieke
+validatie of echte-J9-linkbewijs.
+
+Volgende stap: docs/NAVIGATION_PRIORITY.md en optional/navigation-priority/
+LEESMIJ-TEST.txt lezen. Bij afgesproken stilstand kandidaat in RAM/SD, echte
+J9-linkcontrole, pas daarna one-boot-installatie en expliciete herstartbevestiging.
+Test CP -> nieuwe OEM-route -> stop -> CP, USB tijdens OEM-route, zoom/logo en
+oude veldresten; aankomst apart beoordelen. In deze kandidaat betekent vrijgave
+het einde van de originele inactive-update; een aparte aankomstpresentatieduur
+is niet bewezen. Geen iPhone-routestop/audio-overname. Reeds verstuurde iOS-
+zoom kan niet teruggenomen worden; nieuwe/queued Java-zoom wordt geblokkeerd.
+Niet gecommit/gepusht. Oudere 'alleen policy'-secties zijn historisch.
+
 
 ## NIEUWSTE LIVE STATUS ? CarPlay-logo-onderdrukking permanent bevestigd
 
@@ -952,3 +1286,144 @@ lijkt daarom een lokaal door de teller gekozen afbeelding; het exacte bitmapadre
 is niet aangetoond en zou tellerfirmware/resources vereisen. Alleen PCM-firmware
 is onderzocht. Geen nieuwe code/unitwijziging gedaan; permanente logo-onderdrukking
 blijft ongewijzigd. Classhashes en bronnen in het onderzoeksdocument.
+
+
+## Nieuw voorbereid: Porsche-routevoorrang, nog GEEN integratie/installatie
+
+Gebruiker vroeg lokale voorbereiding van OEM-voorrang, automatische CarPlay-
+terugkeer en een enkele tellerbron. Geen automatische iPhone-routestop beloofd.
+Zie docs/NAVIGATION_PRIORITY.md voor exact firmwarebewijs, ontwerp, gevaren en
+vervolgstappen. Pure policy in optional/navigation-priority/, getest tegen256
+transitiecombinaties plus sessiewissel/arrival/unknown/stale-completion. Map, zoom,
+guidance en logo krijgen dezelfde keuze. Geen threads/OEM-calls/I/O in de policy.
+Actuele kerncode en boundary-fixture intact, geen unitverbinding of deployment.
+
+Belangrijkste integratieprobleem: OEM-status via DSIResponseContainer.isRgActive,
+niet via gedeelde CombiBAPListener.setRgActive; serialiseer eerst CarPlay-clear en
+blokkeren VOOR OEM-publicatie. Bestaande async clear-retry mag OEM niet wissen.
+Native supervisor moet bronkeuze ook volgen; Java-only contextwissel is niet genoeg.
+Aankomsteindevent nog verifi?ren, geen willekeurige timer. De policy is nog geen
+uitrolbare feature/JAR; geen fysieke test uitvoeren voordat adapters, race-tests,
+legacy-J9-verificatie en herstelbare opt-in kandidaat gereed zijn. Niet gecommit.
+
+
+## Review routevoorrang-voorbereiding
+
+Op verzoek grondig gecontroleerd; nog steeds niet aangesloten/geïnstalleerd.
+Policy hersteld: decision-identiteit (geen foreign/stale ack), kaart blijft staan
+bij guidance-only transitie, ongeldige invoer kiest OEM, irrelevante telefoonupdates
+verstoren OEM-transitie niet, expliciete eerste outputsynchronisatie nodig.
+Uitgebreid naar2.304 overgangscombinaties en regressies; vier pytest-tests geslaagd
+(policy, live-source/build-isolatie, guidanceboundary, logolifecycle).
+Geen wijzigingen aan huidige Java/native/unit/build-tools voor deze voorbereiding.
+Cruciaal integratiecontract: check/transitiewrites/ack onder dezelfde policy-monitor,
+alle OEM-/CarPlay-writers aangesloten, clear vóór OEM-publicatie. Policy alleen
+kan geen foutief uitgevoerde externe write terugdraaien. Zie laatste reviewsectie
+in docs/NAVIGATION_PRIORITY.md. Niet als klaar voor fysieke installatie voorstellen.
+
+## Actuele proef: navigatievoorrang, 17 november 2026
+
+Deze sectie vervangt de eerdere status 'nog geen integratie/installatie'. De
+opt-in kandidaat is gebouwd, lokaal getest en op de echte J9 gecontroleerd:
+alle acht adapter/OEM-klassen LINK_PASS. De installer is daarna geslaagd.
+Zie docs/NAVIGATION_PRIORITY.md en build/navigation-priority/manifest.json
+voor ontwerp en exacte artifacthashes. Native kandidaat bevat de startupfix.
+
+Eenmalige proef is met expliciete stilstandtoestemming herstart. Ticket is
+attempted; RAM-marker cw-nav-priority.enabled aanwezig. Java meldt OEM_ENDING,
+OEM_IDLE; CWNP1 permission met bron-PID1732710 is gepubliceerd. Native meldt
+CARPLAY_ACTIVE display=1 context=70 size=800x480 t_ms=67570. Gebruiker bevestigt
+CarPlay op PCM en CarPlay-kaart rechts zichtbaar. OEM-overname en terugkeer zijn
+NOG NIET fysiek bevestigd: gevraagd originele Porsche-route te starten.
+Niet permanent activeren voordat overname en terugkeer zijn bevestigd.
+
+Installatiebackup: controls-v15/before-navigation-priority-20261116/ (historische
+mapnaam). Native baseline 6e7fcdaa..., LSD baseline 5a7f5a08.... Volgende boot
+zonder nieuw ticket valt terug op bevestigde losse Java-JARs; native opt-in is
+zonder RAM-marker uit. Exact herstel via restore.sh uit build/navigation-priority.
+Transfer via eenmalige RAM-helper TCP22110; .tmp/navigation-priority/transfer_current.py.
+Gebruik geen telnet_push --binary: eerdere overdracht werd afgekapt en door hashes
+geweigerd. Klein bootstrapbestand kan met .tmp/unit_console.py --upload.
+
+J9-linkchecker vereist /ifs/lsd.jxe als bootclasspath (bevat ook JCL), expliciete
+JAVA_HOME/LD_LIBRARY_PATH en absolute checker/JAR-paden. Relatieve uitvoering
+vanuit installer gaf startupfout; absolute uitvoering slaagde. Geen bewijs van
+werkelijk RAM-tekort. Offline ROM-audit vond een verweesde PorscheGeometry-call
+in kandidaat ClusterService; uitsluitend die observer is verwijderd, originele
+MapInterface-call behouden. Kandidaat-JAR fedd4e15..., native faf28f9c....
+
+### Eerste OEM-overnameproef: fout gevonden, correctie nog niet geladen
+Gebruiker startte OEM-route maar CarPlay bleef zichtbaar. Java logt OEM_ROUTE en
+OEM_PUBLISHED; CWNP1 generation3 allow0, producer1732710. Native logt
+CARPLAY_PRIORITY_RESTORE_OEM maar gs blijft context70; ack bleef generation2 allow1.
+Live gs-query via dezelfde query-preload kost circa1s (ksh SECONDS). De proef had
+slechts750ms voor query+switch+controle: onvoldoende. Builder hersteld naar het
+bestaande gedeelde4s-budget. Nieuwe C-regressie simuleert1s per operatie en bewijst
+herstel; native gate/freshness-test en QNX -Werror-build slagen.
+Nieuw ELF SHA7dd4e09994a27f88a23d7b73f77d228d3f879e1d2220ad566f7bdd6708a89869
+is atomair naar controls-v15/cw-window-candidate geplaatst; oude processen draaien
+NOG. Java/JAR/LSD ongewijzigd. Backup blijft vorige baseline. RAM-update-script:
+/ramdisk/cw-navigation-priority-20261117/update-native.sh. Vraag staat open om
+alleen supervisor opnieuw te laden, zonder PCM-reboot. Actuele supervisor1810544,
+receiver1732710, worker1958005 en renderer1958016. Controleer PIDs voor signalen.
+Na toestemming SIGTERM supervisor, wacht op cleanup, start nieuwe --run met runtime
+root /ramdisk/cw-link-probe-20261102 en actuele receiverPID. Geen processen blind
+killen; log/applied/context moeten OEM-overname bewijzen. Fysieke bevestiging en
+terugkeer na OEM-stop nog vereist; niets permanent bevestigen.
+
+### Ontvangerverlies tijdens wachttijd op correctie
+Gebruiker meldt CarPlay gecrasht en geeft toestemming nieuwe kaartproces te laden.
+Read-only controle toont geen cw-window en geen dio_manager meer. HMI-J9 nog
+actief. Receiver1732710 verloor bron; SI proces5419044 heeft -sm-restart1 en
+-sm-time229393. Tweede receiver5484645: session-start-result status0 op238.012s,
+map-control-session-forgotten op238.173s; supervisor stopt owner_alive0.
+Geen bewezen crashoorzaak; niet stellen dat dit door querybudget komt. Nieuwe
+ELF reeds geïnstalleerd, dus volgende receiverstart gebruikt correctie. Gebruiker
+gevraagd USB opnieuw aan te sluiten met OEM-route actief. Nog geen tweede PCM-
+herstart en geen blind handmatig receiverproces gestart (SI beheert die lifecycle).
+
+### Correctie geladen na USB-reconnect
+Nieuwe receiver6684782 en worker6815856 draaien; nieuwe supervisor startte na
+USB-reconnect. OEM-route actief: CWNP1 gen6 allow0 producer6684782, CWNPA1 gen6
+allow0 producer6684782 op357s. Live dmdt gs: display1 context72, alleen OEMlayer33.
+Dit bevestigt juiste toestand bij starten met actieve OEM-route; nog GEEN bewijs
+van actieve CarPlay->OEM-overgang onder gecorrigeerde ELF. Vraag om fysieke
+Porschekaart+guidancebevestiging staat open. Daarna OEM-route stoppen en terugkeer
+naar CarPlay verifiëren, daarna OEM-route opnieuw starten voor echte overgang.
+
+### Terugkeer na OEM-stop fysiek bevestigd
+Gebruiker bevestigt Porschekaart EN Porscheaanwijzingen zichtbaar; vervolgens
+OEM-route gestopt en CarPlaykaart terug. Log bij controle: OEM_ENDING/OEM_IDLE,
+CWNP1 gen13 timestamp535 allow1 producer6684782; CWNPA1 zelfde generatie/bron/allow.
+Native meldt ACTIVE context70 op524818ms en eerdere PRIORITY_RESTORE_OEM-events.
+Nog eenmaal expliciet gevraagd OEM-route te starten vanuit zichtbare CarPlaykaart,
+zodat directe overname afzonderlijk fysiek wordt bevestigd. Proef blijft eenmalig;
+geen permanente bevestiging of commit uitgevoerd. Ontvangercrash eerder nog niet
+verklaard; geslaagde overgang is geen bewijs van volledige ruststartstabiliteit.
+
+### Automatische CarPlay->Porsche-overname ook fysiek bevestigd
+Gebruiker bevestigt expliciet 'Ja, Porsche neemt vanzelf over' bij starten van
+originele route vanuit zichtbare CarPlaykaart. Runtime: CWNP1 gen14 timestamp586
+allow0 producer6684782; CWNPA1 identieke generatie/tijd/allow/bron, native log
+CARPLAY_PRIORITY_RESTORE_OEM. Beide richtingen nu fysiek bevestigd: OEM-route
+start geeft Porschekaart+guidance; OEM-route stoppen geeft CarPlaykaart terug.
+Niet permanent gemaakt: one-boot-ticket blijft attempted, geen confirmed-marker.
+Eerdere SI/receiveruitval is nog niet verklaard en ruststart niet gevalideerd.
+
+## Definitief actueel: permanente routevoorrang bevestigd, 17 november 2026
+Gebruiker vroeg permanent activeren en commit. Uitgevoerd zonder PCM-herstart.
+Launcher ondersteunt nu confirmed OF pending, met dezelfde native/JAR-hashguards.
+Nieuwe live LSD SHA8b838ceec57c693a92d5ffd4774912d050adf1dca2b8232fc32b62d1c4833f1f.
+Native SHA7dd4e09994a27f88a23d7b73f77d228d3f879e1d2220ad566f7bdd6708a89869;
+JAR fedd4e15c80b9ae64f541c681502fdef18495e212c8e5097f657d153f6506995.
+Confirmed-marker bevat 'physically verified both directions 2026-11-17'.
+Eenmalige status uit eerdere secties is hiermee vervallen. Actuele Java-sessie
+ongewijzigd; nieuwe launcher wordt volgende boot gebruikt. Meervoudige confirmed-
+bootselectie en restore-markerwissen lokaal transactioneel getest.
+Confirmatiegenerator: build-tools/build_navigation_priority_confirmation.py.
+QNX-valkuilen tijdens activatie: functienaam hash botst met builtin (gebruik cw_hash),
+printf ontbreekt (gebruik print). Eerste pogingen faalden veilig; rollback herstelde
+launcher; laatste poging gaf NAVIGATION_PRIORITY_PERMANENT_CONFIRMED_NO_REBOOT.
+De oorzaak van eerdere SI/receiveruitval blijft open; bevestigde omschakelingen
+zijn geen bewijs voor alle ruststart-/reconnectscenario's. Niet opnieuw rebooten
+zonder stilstandbevestiging. Geen push gevraagd. .tmp is niet onderdeel van commit.

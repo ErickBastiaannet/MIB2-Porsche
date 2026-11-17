@@ -14,10 +14,17 @@ with tempfile.TemporaryDirectory() as tmp:
  env={k:v for k,v in os.environ.items() if not k.startswith(('CW_','CARPLAY_ALTSCREEN')) and k!='LD_PRELOAD'}
  for _ in range(3):
   proc=subprocess.Popen(['/bin/sh',str(wrapper),'pass-through'],env=env,stdout=subprocess.PIPE,text=True)
-  output=proc.communicate()[0].strip().split('|');assert proc.returncode==0
+  assert proc.communicate()[0]=='';assert proc.returncode==0
+  output=(runtime/'cw-carplay-live-v14.log').read_text().splitlines()[-1].split('|')
   assert output==[str(proc.pid),'1','1',str(root/'cw-receiver-controls.so'),'pass-through'],output
  assert (runtime/'enabled').read_text().strip()=='enabled'
  assert len((runtime/'receiver-start.log').read_text().splitlines())==3
+ # An unavailable diagnostics path must not prevent the receiver's exec.
+ log=runtime/'cw-carplay-live-v14.log';log.unlink();log.mkdir()
+ proc=subprocess.Popen(['/bin/sh',str(wrapper),'log-unavailable'],env=env,stdout=subprocess.PIPE,text=True)
+ output=proc.communicate()[0].strip().split('|');assert proc.returncode==0
+ assert output==[str(proc.pid),'1','1',str(root/'cw-receiver-controls.so'),'log-unavailable'],output
+ log.rmdir()
  (root/'enabled').unlink()
  proc=subprocess.Popen(['/bin/sh',str(wrapper),'fallback'],env=env,stdout=subprocess.PIPE,text=True)
  output=proc.communicate()[0].strip().split('|');assert output==[str(proc.pid),'unset','unset','unset','fallback']
