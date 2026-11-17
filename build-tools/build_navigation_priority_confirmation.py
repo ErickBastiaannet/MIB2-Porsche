@@ -9,14 +9,14 @@ set -e
 ROOT=/mnt/app/eso/hmi/connectwow-carplay/controls-v15
 LSD=/mnt/app/eso/hmi/lsd/lsd.sh
 STATE=/mnt/persist/connectwow-carplay/navigation-priority
-TOOL=$ROOT/before-navigation-priority-20261116/cw-window-candidate
+TOOL=$ROOT/cw-window-candidate
 SOURCE=/ramdisk/cw-navigation-priority-20261117/lsd-priority-trial.sh
 function cw_hash { "$TOOL" --hash "$1"; }
 [ "$(cw_hash "$ROOT/cw-window-candidate")" = @WINDOW@ ] || exit 1
 [ "$(cw_hash "$ROOT/PorscheNavigationPriority.test.jar")" = @JAR@ ] || exit 1
 [ "$(cw_hash "$SOURCE")" = @LSD@ ] || exit 1
 OLD=$(cw_hash "$LSD")
-[ "$OLD" = 476561e0e7a6b1977718c7edc32a23fc216df1efbf9172eaa56383913898db10 ] || [ "$OLD" = @LSD@ ] || exit 1
+[ "$OLD" = 476561e0e7a6b1977718c7edc32a23fc216df1efbf9172eaa56383913898db10 ] || [ "$OLD" = 8b838ceec57c693a92d5ffd4774912d050adf1dca2b8232fc32b62d1c4833f1f ] || [ "$OLD" = @LSD@ ] || exit 1
 [ -s "$STATE/attempted" ] || [ -s "$STATE/confirmed" ] || exit 1
 /bin/ksh -n "$SOURCE"
 RW=0

@@ -1427,3 +1427,85 @@ launcher; laatste poging gaf NAVIGATION_PRIORITY_PERMANENT_CONFIRMED_NO_REBOOT.
 De oorzaak van eerdere SI/receiveruitval blijft open; bevestigde omschakelingen
 zijn geen bewijs voor alle ruststart-/reconnectscenario's. Niet opnieuw rebooten
 zonder stilstandbevestiging. Geen push gevraagd. .tmp is niet onderdeel van commit.
+
+### Unitopruiming na permanente activatie
+Op gebruikersverzoek uitsluitend11 exacte tijdelijke bestanden verwijderd:
+8 stagingbestanden in /ramdisk/cw-navigation-priority-20261117/ en3 cw-priority-
+transfer-{0,2,4} bestanden in runtime. Geen transferhelperproces meer aanwezig.
+Herstelscript vooraf persistent bewaard in /mnt/persist/connectwow-carplay/
+navigation-priority/restore.sh; bron/doel SHA71a92fe58c0c270f550eac459eb4515e270d7993250b7e9c8b01ddecc8444731.
+Actieve libs/JARs, alle herstelbackups en diagnostische logs behouden. Lege
+RAM-stagingmap blijft staan (rmdir niet beschikbaar); verdwijnt bij reboot.
+Runtime na opruimen: CWNP1/CWNPA1 gen18 timestamp864 allow1 producer6684782,
+confirmed-marker behouden. Geen herstart uitgevoerd.
+
+## Backups op unit verwijderd op expliciet verzoek
+Na 'backups moeten ook weg' oude kopieën verwijderd:30 genoemde losse historische
+bestanden in controls-v15,9 before/guidance-before submappen, root/backup en
+root/guidance-backup-20261109, persist/navigation-priority/lsd-before-confirm.sh en
+restore.sh. Actieve launcher eerst aangepast om voor hashcontroles het actieve
+cw-window-candidate te gebruiken in plaats van before-navigation-priority. Beide
+confirmed boots en fallback/restore transactiontest slagen. Nieuwe permanente LSD
+SHA3d7e05b5c91a8448f0d91ad036465bbd78b1a29d561a7a75520cd46fb6152af2.
+Confirmed-marker behouden; native/JAR/capture ongewijzigd, geen reboot.
+De eerdere herstelpaden naar before-* bestaan op de unit NIET MEER. Gebruik voor
+herstel lokale/repository-artifacts of OEM firmware, niet het oude restore.sh.
+Stockbestanden buiten ConnectWow-map zijn geen verwijderbare testbackups:
+dio_manager.cw-stock wordt daadwerkelijk uitgevoerd door CarPlay; lsd.sh.cw-stock
+is het bestaande OEM-pad voor profielwrappers. Die runtimebestanden behouden.
+Alleen RAM-stagingbestanden opnieuw verwijderd; diagnostische logs blijven staan.
+Wijzigingen aan package/confirmation-builder hiervoor nog niet gecommit.
+
+## Overdraagbaar SD-pakket voor tweede unit, 17 november 2026
+Gebruiker wil de schone installatie ook op andere navigatie kunnen gebruiken.
+Compleet nieuw overlaypakket gebouwd, GEEN installatie op verbonden auto uitgevoerd.
+Scope uitsluitend schone unit met exact MU1417/OEM-/displayprofiel; bestaande
+ConnectWow/CarPlay-modificaties worden bewust geweigerd voor schrijven. Andere
+firmware/PCM/Audi vereist een apart onderzocht profiel. Online Menu en originele
+CarPlay moeten al functioneren. Zie docs/PORTABLE_INSTALL.md voor gebruikersstappen.
+
+Artifact: build/porsche-carplay-MU1417-portable.zip (circa164kB), SHA
+1e7eda3b555df4e9d95f86fa53c58c308727e06cec34f16fbcc5adb74a01f386.
+Builder build-tools/build_portable_sd.py --efs-root <originele efs-system root>.
+Hier gebruikt: backend-private/.tmp/porsche-carplay-mu1417/native-analysis/efs-network.
+Pinned bestaande, fysiek gebruikte ELF/libraries/JAR onder verified/mu1417-20261117/;
+manifest bevat exacte hashes en scope. De oude capturebron is NIET herbouwd:
+c0208032... is read-only van de unit uitgelezen en op SHA geverifieerd. Tijdelijke
+RAM-uitleeshelper na afloop verwijderd. Geen geheimen/auto-identiteit gekopieerd.
+
+Nieuwe templates unit/portable_install.sh, portable_hmi.sh, portable_link_check.sh.
+Menu: check, install, confirm, restore, reboot, logs, status. Kort onderscheiden
+scriptnamen voorkomen eerdere Online Menu-updatealiasing. Pakket is een overlay,
+geen volledige SD/firmware of CarPlay-activering. HMI-wrapper zet alleen bewezen
+opties en exec't eigen originele doelunit-HMI; geen gekopieerde testunit-LSD/VIN.
+Installatie maakt minimale benodigde OEM-runtimepaden, bewaart herstelkopieën van
+de doelunit op SD online/cw-release/recovery, geen stapel proefbackups op unit.
+SI krijgt uitsluitend geteste cw-carplay-start exec; iAP2 uitsluitend geteste ident-
+registratie. Eerste volledige boot is proef. Zonder bevestiging volgende boot OEM-
+HMI; bevestigingsactie na fysieke proef nodig. Geen impliciete reboot: aparte knop.
+
+Controles: exacte OEM DIO/LSD/mm-ipod/SI/iAP2/display hashes vóór writable mount,
+complete payloadmanifest, echte J9-linkcheck vóór installeren, hashcontrole staging,
+atomische filevervanging, rollback en read-only remount. Onvolledige rollback geeft
+expliciete fout en behoudt artifacts/herstelmap. Herstel kan met beschadigde native
+library (onafhankelijke verifier op SD). Geen garantie bij harde stroomonderbreking;
+SD-herstelmap behouden. Geen oude live installer op huidige opgeruimde unit draaien.
+
+Verificatie: tests/portable_install_transaction.py met echte legacy QNX-ksh in
+qnx65-armv7:4.9:11 scenario's PASS (wrong OEM, corrupte payload, mount, rename,
+late rename, copy, mislukte rollbackmelding, proefbootfallback, herhaald confirmed,
+mislukt restore met rollback, corrupt installed library herstellen). OEM-inhoud,
+mounts en J9 in deze fixture gesimuleerd; geen GPU/iPhone/tweede fysieke unit.
+Tests/test_portable_package.py:3 PASS (determinisme/geen testunitafhankelijkheid,
+verkeerde OEM weigeren, gemuteerde verified binary weigeren). Alle12 ZIP-scripts
+slagen in QNX-ksh -n, LF gecontroleerd. Bestaande receiveruitval/ruststart blijft
+open; nieuwe verse installatie nog NIET fysiek getest op tweede navigatie.
+Bronnen/documentatie en wijzigingen na17ab41b nog niet gecommit/gepusht.
+
+### Vastlegging portable pakket
+Op gebruikersverzoek worden de opschoning, backupvrije launcherafhankelijkheid,
+portable installer/builder, pinned release-artifacts, documentatie en tests samen
+gecommit. Laatste controle:3 pakkettests en11 QNX-ksh-transactiescenario's geslaagd.
+Tijdelijke .tmp-bestanden en gegenereerde build-ZIP vallen buiten deze commit.
+De ZIP is reproduceerbaar met de gedocumenteerde originele efs-configuratie.
+Deze actie bevat geen nieuwe unitinstallatie en geen Git-push.

@@ -1,0 +1,11 @@
+{
+  "firmware": "MHI2_ER_POG24_K5137_MU1417_971919360T",
+  "scope": "Existing unit: video, zoom, logo suppression and OEM navigation priority physically tested; fresh installer on another unit not physically tested. Earlier receiver loss remains unexplained.",
+  "files": {
+    "cw-window-candidate": "7dd4e09994a27f88a23d7b73f77d228d3f879e1d2220ad566f7bdd6708a89869",
+    "cw-receiver-controls.so": "c020803207a59ac438e2ffe526110ffcb7294cac86236fcf1cb96da9eca3f847",
+    "cw-rgi.so": "a033051e84926c9a6912970771f5dbb5ee7dd124f6953898c4fdaf9f143e000e",
+    "libcw-query-stdio.so": "af1c407e4693447903283e800484e82bacf269dee8d6a72e21176e3e7b6fa9a7",
+    "PorscheNavigationPriority.test.jar": "fedd4e15c80b9ae64f541c681502fdef18495e212c8e5097f657d153f6506995"
+  }
+}

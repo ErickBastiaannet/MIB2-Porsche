@@ -219,3 +219,12 @@ Na stoppen van de Porsche-route keert geldig CarPlay-kaartbeeld automatisch teru
 De CarPlay-kaart blijft zonder actieve telefoonroute bruikbaar. De iPhone-route
 wordt niet automatisch gestopt. Permanente activatie is op de testunit bevestigd;
 zie docs/NAVIGATION_PRIORITY.md voor installatie, hashcontrole en herstel.
+
+
+Installatie op een andere unit met dezelfde MU1417-firmware
+Er is een afzonderlijk, compleet Online Menu-SD-overlaypakket:
+build/porsche-carplay-MU1417-portable.zip. Zie docs/PORTABLE_INSTALL.md.
+Het weigert onbekende OEM-hashes en bestaande CarPlay-modificaties. De eerste
+boot is een proef; pas na controle bevestigen. Geen automatische herstart.
+De artifacts zijn op de Panamera getest; de nieuwe verse installer is lokaal
+getest, niet fysiek op een tweede navigatie. Andere firmware niet ondersteund.
